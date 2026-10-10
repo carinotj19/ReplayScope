@@ -1,69 +1,77 @@
 # ReplayScope
 
-ReplayScope is a Flask web app for exploring AI-agent benchmark data: **experiments, agent versions, JSON/CSV ingestion, outcome statistics, and per-run trace events**. It is simulation-independent, and its supplied data is illustrative.
+**ReplayScope** is a Python/Flask dashboard for benchmarking AI-agent behavior: experiments, agent versions, JSON/CSV imports, descriptive outcome rates, and per-run trace events. It is simulation-independent and ships with illustrative sample data.
 
-**Status:** local portfolio prototype with a responsive server-rendered dashboard, REST API, database persistence, Redis/RQ optional workers, Pytest and GitHub Actions. Authentication, production migrations/storage and deployment are not yet implemented.
+**Status:** portfolio prototype. Includes a responsive Jinja dashboard, REST API, SQLAlchemy persistence, Alembic schema migrations for managed installations, an optional Redis/RQ worker, automated tests and CI. It is not yet secured for public deployment.
 
-## Run locally (Windows PowerShell)
+## Run the existing Windows demo (SQLite, no Docker required)
 
-    py -3 -m venv .venv
+    cd E:\Repo\ReplayScope
     .\.venv\Scripts\Activate.ps1
     python -m pip install -e ".[dev]"
     python -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
-    flask --app replayscope:create_app run --debug
+    python -m flask --app replayscope:create_app run --debug
 
-Open **http://127.0.0.1:5000/** to see the dashboard.
+Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
 
-From the dashboard:
-1. Create an experiment.
-2. Open the experiment, choose Import dataset, and upload examples/benchmark.json or examples/benchmark.csv.
-3. Review agent/version outcome rates and per-run traces. Use the scenario selector to narrow comparisons.
-4. Expand Inspect on a run to see failure reasons, metadata and trace events.
+From the browser: create an experiment, upload examples/benchmark.json or
+examples/benchmark.csv, filter by scenario, compare versions, and inspect runs.
+JSON events provide simple per-run trace inspection.
 
-You can also exercise the JSON API:
+## Full integration stack (requires Docker Desktop and Compose)
 
-    $experiment = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5000/api/v1/experiments -ContentType 'application/json' -Body '{"name":"API demo"}'
-    curl.exe -X POST http://127.0.0.1:5000/api/v1/uploads -F "experiment_id=$($experiment.id)" -F "file=@examples/benchmark.json"
-    Invoke-RestMethod "http://127.0.0.1:5000/api/v1/experiments/$($experiment.id)/summary"
+From the repository root:
 
-## Technology
+    docker compose up --build
 
-- Python 3.11+, Flask app factory and separate API/dashboard Blueprints
-- Jinja2, accessible semantic HTML, responsive CSS, lightweight vanilla JS
-- Flask-SQLAlchemy (local SQLite default; PostgreSQL support planned)
-- Optional Redis/RQ job worker, with inline fallback for simple demos
-- Pytest, GitHub Actions CI and sample benchmark datasets
+Open http://127.0.0.1:8000/ . Compose starts PostgreSQL, Redis, the Flask/Gunicorn
+API, and an RQ worker. The API applies Alembic migrations to the initially empty
+PostgreSQL database before the worker starts. Uploaded files are stored in a shared
+named Docker volume. Docker data is separate from the earlier local SQLite demo.
 
-## REST API
+To stop, press Ctrl+C or run:
 
-| Method | Endpoint | Role |
+    docker compose down
+
+The volumes persist. Use docker compose down -v only if you intentionally want to
+DELETE the Compose database and uploads.
+
+The Compose password is intentionally weak and hard-coded for local development:
+DO NOT expose the containers publicly or reuse this setup in production.
+
+## Managed DB migrations
+
+When DATABASE_URL is provided, ReplayScope defaults to AUTO_CREATE_DB=0 and does
+not silently create tables. For an EMPTY managed PostgreSQL database:
+
+    python -m flask --app replayscope:create_app db upgrade
+
+The SQLite quick-start still creates its schema automatically if DATABASE_URL is
+unset. Avoid applying the initial schema migration on top of an already-populated
+SQLite database, or you will encounter existing-table conflicts.
+
+## API
+
+| Method | Path | Description |
 | --- | --- | --- |
-| GET | /health | Basic health |
-| GET, POST | /api/v1/experiments | List/create experiments |
-| GET | /api/v1/agent-versions | Agent versions registered through ingestion |
-| POST | /api/v1/uploads | Multipart JSON/CSV file + experiment_id |
-| GET | /api/v1/uploads/{id} | Processing status and row count |
-| GET | /api/v1/experiments/{id}/runs | Paginated runs, optional scenario and agent_version_id filters |
-| GET | /api/v1/experiments/{id}/summary | Grouped version/scenario statistics, optional scenario filter |
+| GET | /health | Service health |
+| GET, POST | /api/v1/experiments | Experiments |
+| GET | /api/v1/agent-versions | Versions created during ingestion |
+| POST | /api/v1/uploads | Multipart file + experiment_id |
+| GET | /api/v1/uploads/{id} | Async processing state |
+| GET | /api/v1/experiments/{id}/runs | Paginated runs with filters |
+| GET | /api/v1/experiments/{id}/summary | Agent/version and scenario summaries |
 
-## Input format
+Input records require agent, version, scenario, outcome (win/loss/draw or
+success/failure), and finite score. Optional fields: seed, duration_ms,
+failure_reason, metadata and events (typed JSON event objects).
 
-JSON accepts a list or an object containing runs; CSV accepts one run per row. Each record requires agent, version, scenario, outcome and score. Outcomes are win/loss/draw for competitive benchmarks or success/failure for task benchmarks. Scores must be finite.
-
-Optional: seed (string or integer), duration_ms (nonnegative finite number), failure_reason (string), metadata (JSON object), events (JSON array of objects with a type string). CSV supports scalar fields only.
-
-Current limits: 8 MiB, 2,000 runs per file, and 500 trace events per run. Identical file bytes inside the same experiment are deduplicated.
-
-**Game win rate** = wins / (wins + losses + draws).
-**Task success rate** = successes / (successes + failures).
-They are reported separately with raw counts and Wilson 95% intervals. Scores should only be compared across compatible scenarios; sample datasets do not establish statistically significant differences.
-
-## Redis / RQ (optional)
-
-To enable queue processing, run a Redis server, set PROCESSING_MODE=rq and REDIS_URL, and share DATABASE_URL plus UPLOAD_DIR between the API and worker. Then run:
-
-    rq worker replayscope --url redis://localhost:6379/0
-
-**Security caveat:** This is a local prototype. The current API has no user authentication, authorization, CSRF defenses, or rate limits. Do not expose it to the public Internet as-is. PostgreSQL migrations, structured operational logging, secure uploads/retention and integration checks are future work.
+Limits: 8 MiB/file, 2,000 runs/file, 500 events/run; duplicate file bytes
+within an experiment are deduplicated. Game win and task success rates are
+calculated separately, with Wilson 95% intervals. Do not infer significance
+from small or unmatched sample runs.
 
 See docs/architecture.md and docs/roadmap.md.
+
+**Warning:** No user auth, CSRF defense, public-hosting hardening or per-user
+quotas are implemented. Keep this version on localhost.
