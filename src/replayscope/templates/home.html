@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Overview{% endblock %}
+{% block content %}
+  <div class="eyebrow"><span class="eyebrow-dot"></span> SYSTEM / WORKSPACE</div>
+  <div class="heading-row">
+    <div>
+      <h1>Benchmark intelligence<span class="muted-period">.</span></h1>
+      <p class="page-subtitle">One place to trace, measure, and compare agent performance.</p>
+    </div>
+    <a class="button button-secondary" href="#new-experiment">+ New experiment</a>
+  </div>
+
+  <section class="metrics-grid" aria-label="Workspace metrics">
+    <div class="metric-card"><div class="metric-kicker">EXPERIMENTS <span class="metric-glyph">⬡</span></div><div class="metric-number">{{ experiments|length }}</div><div class="metric-detail">Evaluation workspaces</div></div>
+    <div class="metric-card"><div class="metric-kicker">PROCESSED RUNS <span class="metric-glyph">▥</span></div><div class="metric-number">{{ "{:,}".format(total_runs) }}</div><div class="metric-detail">Across all experiments</div></div>
+    <div class="metric-card"><div class="metric-kicker">RECENT IMPORTS <span class="metric-glyph">⇪</span></div><div class="metric-number">{{ recent_uploads|length }}</div><div class="metric-detail">Latest five uploads</div></div>
+  </section>
+
+  <div class="two-column">
+    <section class="panel" id="experiments" aria-labelledby="experiments-title">
+      <div class="panel-heading"><div><div class="panel-eyebrow">EVALUATIONS</div><h2 id="experiments-title">Experiments</h2></div><span class="count-pill">{{ experiments|length }} TOTAL</span></div>
+      {% if experiments %}
+        <div class="experiment-list">
+          {% for experiment in experiments %}
+            <a class="experiment-item" href="{{ url_for('web.experiment_page', experiment_id=experiment.id) }}">
+              <span class="experiment-icon">⬡</span>
+              <span class="experiment-info"><strong>{{ experiment.name }}</strong><small>{{ experiment.description or 'Agent benchmark collection' }}</small></span>
+              <span class="experiment-count">{{ counts.get(experiment.id, 0) }} runs</span>
+              <span class="arrow-icon">↗</span>
+            </a>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="empty-state"><span class="empty-icon">⬡</span><strong>No experiments yet</strong><p>Create your first evaluation workspace to get started.</p></div>
+      {% endif %}
+    </section>
+
+    <div class="side-panels">
+      <section class="panel panel-pad" id="new-experiment" aria-labelledby="create-title">
+        <div class="panel-eyebrow">QUICK START</div>
+        <h2 id="create-title">New experiment</h2>
+        <p class="panel-description">Create a workspace, then upload JSON or CSV benchmark results.</p>
+        <form data-create-experiment>
+          <label for="experiment-name">Experiment name</label>
+          <input id="experiment-name" name="name" required maxlength="160" placeholder="e.g. Navigation benchmarks">
+          <label for="experiment-description">Description <span class="optional">OPTIONAL</span></label>
+          <textarea id="experiment-description" name="description" rows="2" maxlength="4000" placeholder="What are you evaluating?"></textarea>
+          <button class="button button-primary full" type="submit">Create experiment <span>→</span></button>
+          <p class="form-status" role="status" aria-live="polite" data-form-status></p>
+        </form>
+      </section>
+
+      <section class="panel panel-pad" id="recent-uploads">
+        <div class="panel-eyebrow">PIPELINE</div>
+        <h2>Recent imports</h2>
+        {% if recent_uploads %}
+          <div class="upload-list">
+            {% for upload in recent_uploads %}
+              <a href="{{ url_for('web.experiment_page', experiment_id=upload.experiment_id) }}" class="upload-item"><span class="file-icon">{{ upload.format|upper }}</span><span class="upload-name">{{ upload.filename }}</span><span class="status-badge status-{{ upload.status }}">{{ upload.status }}</span></a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="panel-description">Uploads will appear here after you import a dataset.</p>
+        {% endif %}
+      </section>
+    </div>
+  </div>
+{% endblock %}

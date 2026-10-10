@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}{{ experiment.name }}{% endblock %}
+{% block crumb %}<a href="{{ url_for('web.home') }}#experiments">Experiments</a><span>/</span>{{ experiment.name }}{% endblock %}
+{% block content %}
+  <div class="eyebrow"><span class="eyebrow-dot"></span> EXPERIMENT / {{ "%04d"|format(experiment.id) }}</div>
+  <div class="heading-row">
+    <div><h1>{{ experiment.name }}<span class="muted-period">.</span></h1><p class="page-subtitle">{{ experiment.description or 'Benchmark performance and trace exploration' }}</p></div>
+    <a class="button button-secondary" href="#upload-dataset">⇪ Import data</a>
+  </div>
+
+  <div class="experiment-layout">
+    <div class="primary-column">
+      <section class="metrics-grid small-metrics" aria-label="Experiment summary">
+        <div class="metric-card"><div class="metric-kicker">RUNS <span class="metric-glyph">▥</span></div><div class="metric-number">{{ "{:,}".format(total_runs) }}</div><div class="metric-detail">Completed processing</div></div>
+        <div class="metric-card"><div class="metric-kicker">AGENT VERSIONS <span class="metric-glyph">⬡</span></div><div class="metric-number">{{ versions|length }}</div><div class="metric-detail">In current scope</div></div>
+        <div class="metric-card"><div class="metric-kicker">MEAN SCORE <span class="metric-glyph">↗</span></div><div class="metric-number">{{ "%.2f"|format(mean_score) if mean_score is not none else "—" }}</div><div class="metric-detail">Only compare compatible scenarios</div></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-heading"><div><div class="panel-eyebrow">PERFORMANCE</div><h2>Version comparison</h2></div>
+          <form method="get" action="{{ url_for('web.experiment_page', experiment_id=experiment.id) }}" class="filter-form">
+            <label for="scenario" class="sr-only">Filter by scenario</label>
+            <select id="scenario" name="scenario" onchange="this.form.submit()">
+              <option value="">All scenarios</option>
+              {% for scenario in scenarios %}<option value="{{ scenario }}" {% if scope == scenario %}selected{% endif %}>{{ scenario }}</option>{% endfor %}
+            </select>
+            <noscript><button class="button button-secondary" type="submit">Filter</button></noscript>
+          </form></div>
+        {% if versions %}
+          <div class="version-list">
+            {% for item in versions %}
+              <div class="version-row">
+                <div class="version-header"><div><strong>{{ item.agent }}</strong> <span class="version-pill">{{ item.version }}</span><small>{{ item.metric_label }} · {{ item.metrics.runs }} run{{ "" if item.metrics.runs == 1 else "s" }}</small></div>
+                  <div class="version-rate">{{ "%.0f"|format(item.primary_rate * 100) ~ "%" if item.primary_rate is not none else "N/A" }}</div>
+                </div>
+                <div class="bar-track" role="img" aria-label="{{ item.metric_label }} for {{ item.agent }} {{ item.version }}: {{ "%.0f"|format(item.primary_rate * 100) ~ " percent" if item.primary_rate is not none else "not available" }}"><div class="bar-fill" style="width: {{ '%.2f'|format(item.primary_rate * 100) if item.primary_rate is not none else 0 }}%"></div></div>
+                <div class="version-meta"><span>Mean score: <b>{{ "%.2f"|format(item.metrics.mean_score) if item.metrics.mean_score is not none else "—" }}</b></span><span>Mean duration: <b>{{ "%.0f"|format(item.metrics.mean_duration_ms) ~ " ms" if item.metrics.mean_duration_ms is not none else "—" }}</b></span><span>Outcomes: <b>{{ item.metrics.outcomes.win }} W / {{ item.metrics.outcomes.loss }} L / {{ item.metrics.outcomes.draw }} D · {{ item.metrics.outcomes.success }} S / {{ item.metrics.outcomes.failure }} F</b></span></div>
+              </div>
+            {% endfor %}
+          </div>
+          <p class="fine-print">Rates are descriptive. Game results (W/L/D) and task results (S/F) use different denominators. Small samples do not establish statistically significant differences.</p>
+        {% else %}
+          <div class="empty-state"><span class="empty-icon">▤</span><strong>No results in this scope</strong><p>Upload a benchmark file, or choose a different scenario.</p></div>
+        {% endif %}
+      </section>
+
+      <section class="panel" id="runs">
+        <div class="panel-heading"><div><div class="panel-eyebrow">EXPLORER</div><h2>Run history</h2></div><span class="count-pill">{{ total_runs }} RUNS</span></div>
+        {% if rows %}
+          <div class="table-scroll"><table><thead><tr><th>Agent</th><th>Scenario</th><th>Outcome</th><th>Score</th><th>Details</th></tr></thead><tbody>
+            {% for run in rows %}
+              <tr><td><strong>{{ run.agent_version.name }}</strong><small>{{ run.agent_version.version }}</small></td><td>{{ run.scenario }}</td><td><span class="outcome outcome-{{ run.outcome }}">{{ run.outcome }}</span></td><td class="mono">{{ "%.3f"|format(run.score) }}</td><td><details class="trace"><summary>Inspect ↗</summary><div class="trace-details"><div>Seed: {{ run.seed or "—" }}</div><div>Duration: {{ "%.0f"|format(run.duration_ms) ~ " ms" if run.duration_ms is not none else "—" }}</div><div>Failure reason: {{ run.failure_reason or "—" }}</div><strong>Metadata</strong><pre>{{ run.extra|tojson(indent=2) }}</pre><strong>Trace events</strong><pre>{{ run.events|tojson(indent=2) }}</pre></div></details></td></tr>
+            {% endfor %}
+          </tbody></table></div>
+          <div class="pager"><span>Page {{ page }} of {{ total_pages }}</span><div>
+            {% if page > 1 %}<a href="{{ url_for('web.experiment_page', experiment_id=experiment.id, scenario=scope, page=page-1) }}">← Previous</a>{% endif %}
+            {% if page < total_pages %}<a href="{{ url_for('web.experiment_page', experiment_id=experiment.id, scenario=scope, page=page+1) }}">Next →</a>{% endif %}
+          </div></div>
+        {% else %}
+          <div class="empty-state compact"><p>No runs to display.</p></div>
+        {% endif %}
+      </section>
+    </div>
+
+    <div class="side-panels">
+      <section class="panel panel-pad" id="upload-dataset">
+        <div class="panel-eyebrow">INGESTION</div><h2>Import dataset</h2>
+        <p class="panel-description">One file can contain multiple agents and scenarios. JSON or CSV, up to 8 MB.</p>
+        <form data-upload-form data-experiment-id="{{ experiment.id }}">
+          <label class="upload-drop" for="benchmark-file"><span class="upload-arrow">⇪</span><strong>Choose a benchmark file</strong><small>JSON / CSV · MAX 8 MB</small><input id="benchmark-file" name="file" type="file" accept=".json,.csv,application/json,text/csv" required></label>
+          <button class="button button-primary full" type="submit">Process dataset <span>→</span></button>
+          <p class="form-status" role="status" aria-live="polite" data-form-status></p>
+        </form>
+        <p class="fine-print">Files are stored locally. Avoid uploading sensitive datasets.</p>
+      </section>
+
+      <section class="panel panel-pad">
+        <div class="panel-eyebrow">PROCESSING</div><h2>Import history</h2>
+        {% if uploads %}
+          <div class="upload-list">
+            {% for upload in uploads %}
+              <div class="upload-item"><span class="file-icon">{{ upload.format|upper }}</span><span class="upload-name" title="{{ upload.filename }}">{{ upload.filename }}<small>{{ upload.run_count }} runs</small></span><span class="status-badge status-{{ upload.status }}">{{ upload.status }}</span></div>
+              {% if upload.error %}<p class="upload-error">{{ upload.error }}</p>{% endif %}
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="panel-description">No datasets have been uploaded.</p>
+        {% endif %}
+      </section>
+
+      <section class="panel panel-pad note-panel"><div class="panel-eyebrow">HOW TO READ</div><h2>A note on results</h2><p>Win rate and task success rate are not interchangeable. This dashboard summarizes observations; fair paired comparisons are a later feature.</p><a href="{{ url_for('api.experiment_summary', experiment_id=experiment.id) }}" target="_blank" rel="noopener noreferrer" class="quiet-link">View JSON response ↗</a></section>
+    </div>
+  </div>
+{% endblock %}

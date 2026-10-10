@@ -1,29 +1,38 @@
 # ReplayScope
 
-ReplayScope is a Python/Flask backend for ingesting **simulation and AI-agent benchmark results**, tracking agent versions, and comparing experiments. It is deliberately simulation-independent: no external competition API, active simulation engine, or trained model is necessary.
+ReplayScope is a Flask web app for exploring AI-agent benchmark data: **experiments, agent versions, JSON/CSV ingestion, outcome statistics, and per-run trace events**. It is simulation-independent, and its supplied data is illustrative.
 
-**Status:** portfolio foundation — structured JSON/CSV ingestion, versioned REST API, SQLAlchemy persistence, Redis/RQ option, descriptive statistics, tests and CI. Dashboard, authentication, migrations and production hosting are subsequent milestones.
+**Status:** local portfolio prototype with a responsive server-rendered dashboard, REST API, database persistence, Redis/RQ optional workers, Pytest and GitHub Actions. Authentication, production migrations/storage and deployment are not yet implemented.
 
 ## Run locally (Windows PowerShell)
 
     py -3 -m venv .venv
     .\.venv\Scripts\Activate.ps1
     python -m pip install -e ".[dev]"
+    python -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
     flask --app replayscope:create_app run --debug
 
-Run the tests with:
+Open **http://127.0.0.1:5000/** to see the dashboard.
 
-    python -m pytest -q
+From the dashboard:
+1. Create an experiment.
+2. Open the experiment, choose Import dataset, and upload examples/benchmark.json or examples/benchmark.csv.
+3. Review agent/version outcome rates and per-run traces. Use the scenario selector to narrow comparisons.
+4. Expand Inspect on a run to see failure reasons, metadata and trace events.
 
-## Demo workflow
+You can also exercise the JSON API:
 
-Create an experiment, then upload the included sample data:
-
-    $experiment = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5000/api/v1/experiments -ContentType 'application/json' -Body '{"name":"Portfolio demo"}'
+    $experiment = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5000/api/v1/experiments -ContentType 'application/json' -Body '{"name":"API demo"}'
     curl.exe -X POST http://127.0.0.1:5000/api/v1/uploads -F "experiment_id=$($experiment.id)" -F "file=@examples/benchmark.json"
     Invoke-RestMethod "http://127.0.0.1:5000/api/v1/experiments/$($experiment.id)/summary"
 
-The example data is **illustrative**, not a claim of real experiment performance. A CSV example is also provided.
+## Technology
+
+- Python 3.11+, Flask app factory and separate API/dashboard Blueprints
+- Jinja2, accessible semantic HTML, responsive CSS, lightweight vanilla JS
+- Flask-SQLAlchemy (local SQLite default; PostgreSQL support planned)
+- Optional Redis/RQ job worker, with inline fallback for simple demos
+- Pytest, GitHub Actions CI and sample benchmark datasets
 
 ## REST API
 
@@ -37,28 +46,24 @@ The example data is **illustrative**, not a claim of real experiment performance
 | GET | /api/v1/experiments/{id}/runs | Paginated runs, optional scenario and agent_version_id filters |
 | GET | /api/v1/experiments/{id}/summary | Grouped version/scenario statistics, optional scenario filter |
 
-## Dataset contract
+## Input format
 
-JSON accepts a list of runs or an object with a runs array; CSV accepts one run per row. Each record requires the following keys:
+JSON accepts a list or an object containing runs; CSV accepts one run per row. Each record requires agent, version, scenario, outcome and score. Outcomes are win/loss/draw for competitive benchmarks or success/failure for task benchmarks. Scores must be finite.
 
-- agent: nonempty name
-- version: nonempty version label
-- scenario: task / environment / test-case name
-- outcome: win, loss, draw, success or failure
-- score: finite number
+Optional: seed (string or integer), duration_ms (nonnegative finite number), failure_reason (string), metadata (JSON object), events (JSON array of objects with a type string). CSV supports scalar fields only.
 
-Optional: seed (string or integer), duration_ms (nonnegative finite number), failure_reason (string), metadata (JSON object), events (array of JSON objects each including a type string). CSV supports scalar fields only; JSON supports metadata and events.
+Current limits: 8 MiB, 2,000 runs per file, and 500 trace events per run. Identical file bytes inside the same experiment are deduplicated.
 
-Current limits: 8 MiB per upload, 2,000 runs per file and 500 events per run. Duplicate file bytes within an experiment return the existing upload record.
+**Game win rate** = wins / (wins + losses + draws).
+**Task success rate** = successes / (successes + failures).
+They are reported separately with raw counts and Wilson 95% intervals. Scores should only be compared across compatible scenarios; sample datasets do not establish statistically significant differences.
 
-**Game win rate** = wins / (wins + losses + draws). **Task success rate** = successes / (successes + failures). They are reported separately, with the underlying counts and Wilson 95% intervals. Scores are unitless and should only be compared between compatible scenarios. Failure reasons are user-provided labels, not inferred causes.
+## Redis / RQ (optional)
 
-## Async option
-
-The default uses inline processing so the demo works without Redis. For a Redis/RQ worker, set PROCESSING_MODE=rq and REDIS_URL=redis://localhost:6379/0, and set DATABASE_URL and UPLOAD_DIR to shared locations in both API and worker environments. Then start:
+To enable queue processing, run a Redis server, set PROCESSING_MODE=rq and REDIS_URL, and share DATABASE_URL plus UPLOAD_DIR between the API and worker. Then run:
 
     rq worker replayscope --url redis://localhost:6379/0
 
-A Redis server must be running. Local SQLite and disk storage are for development only. Do not deploy this version on a public URL without authentication, safe migrations and production storage protections.
+**Security caveat:** This is a local prototype. The current API has no user authentication, authorization, CSRF defenses, or rate limits. Do not expose it to the public Internet as-is. PostgreSQL migrations, structured operational logging, secure uploads/retention and integration checks are future work.
 
 See docs/architecture.md and docs/roadmap.md.
