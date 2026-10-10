@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>{% block title %}ReplayScope{% endblock %} — ReplayScope</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+  <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="{{ url_for('web.home') }}" aria-label="ReplayScope home">
+        <span class="brand-symbol" aria-hidden="true"><span></span></span>
+        <span><strong>replay<span class="brand-emphasis">scope</span></strong><small>AGENT OBSERVABILITY</small></span>
+      </a>
+      <div class="sidebar-rule"></div>
+      <div class="nav-caption">WORKSPACE</div>
+      <nav class="nav" aria-label="Primary navigation">
+        <a class="nav-link {{ 'selected' if active_page == 'home' else '' }}" href="{{ url_for('web.home') }}"><span class="nav-icon">▦</span> Overview</a>
+        <a class="nav-link {{ 'selected' if active_page == 'experiments' else '' }}" href="{{ url_for('web.home') }}#experiments"><span class="nav-icon">⬡</span> Experiments</a>
+        <a class="nav-link" href="{{ url_for('web.home') }}#recent-uploads"><span class="nav-icon">⇪</span> Imports</a>
+      </nav>
+      <div class="sidebar-foot">
+        <span class="status-dot"></span> LOCAL DEVELOPMENT
+        <p>ReplayScope v0.2<br>Flask analytics workspace</p>
+      </div>
+    </aside>
+
+    <main class="main" id="main">
+      <header class="topbar">
+        <div class="crumbs"><a href="{{ url_for('web.home') }}">Workspace</a><span>/</span>{% block crumb %}Overview{% endblock %}</div>
+        <div class="topbar-right"><span class="environment-pill"><span class="status-dot"></span> DEVELOPMENT</span><span class="avatar" aria-hidden="true">RS</span></div>
+      </header>
+      <div class="content">
+        {% block content %}{% endblock %}
+        <footer class="footer">ReplayScope / An engineering portfolio project <span>Benchmark data is illustrative until replaced with real runs.</span></footer>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
