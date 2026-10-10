@@ -1,3 +1,4 @@
+"""Experiment data model. No simulation- or game-specific entities."""
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -6,34 +7,48 @@ from sqlalchemy import UniqueConstraint
 
 db = SQLAlchemy()
 
-
-class AgentVersion(db.Model):
-    __tablename__ = "agent_versions"
-    __table_args__ = (UniqueConstraint("name", "version"),)
-    id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(120), nullable=False)
-    version = db.Column(db.String(80), nullable=False)
-
+def utcnow():
+    return datetime.now(timezone.utc)
 
 class Experiment(db.Model):
     __tablename__ = "experiments"
     id = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(160), nullable=False, unique=True)
+    name = db.Column(db.String(160), unique=True, nullable=False)
+    description = db.Column(db.Text, nullable=False, default="")
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
 
+class AgentVersion(db.Model):
+    __tablename__ = "agent_versions"
+    __table_args__ = (UniqueConstraint("name", "version", name="uq_agent_version"),)
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(120), nullable=False)
+    version = db.Column(db.String(80), nullable=False)
 
-class Replay(db.Model):
-    __tablename__ = "replays"
-    __table_args__ = (
-        UniqueConstraint("experiment_id", "agent_version_id", "player_slot", "digest"),
-    )
+class ReplayUpload(db.Model):
+    __tablename__ = "replay_uploads"
+    __table_args__ = (UniqueConstraint("experiment_id", "sha256", name="uq_experiment_upload_digest"),)
     id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid4()))
-    experiment_id = db.Column(db.Integer, db.ForeignKey("experiments.id"), nullable=False)
-    agent_version_id = db.Column(db.Integer, db.ForeignKey("agent_versions.id"), nullable=False)
-    player_slot = db.Column(db.Integer, nullable=False)
-    digest = db.Column(db.String(64), nullable=False)
+    experiment_id = db.Column(db.Integer, db.ForeignKey("experiments.id"), nullable=False, index=True)
+    sha256 = db.Column(db.String(64), nullable=False)
+    format = db.Column(db.String(8), nullable=False)
+    filename = db.Column(db.String(255), nullable=False)
     path = db.Column(db.Text, nullable=False)
-    status = db.Column(db.String(20), nullable=False, default="queued")
-    metrics = db.Column(db.JSON)
+    status = db.Column(db.String(24), nullable=False, default="queued")
+    run_count = db.Column(db.Integer, nullable=False, default=0)
     error = db.Column(db.String(500))
-    created_at = db.Column(db.DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    created_at = db.Column(db.DateTime(timezone=True), default=utcnow, nullable=False)
+
+class BenchmarkRun(db.Model):
+    __tablename__ = "benchmark_runs"
+    id = db.Column(db.Integer, primary_key=True)
+    upload_id = db.Column(db.String(36), db.ForeignKey("replay_uploads.id"), nullable=False, index=True)
+    agent_version_id = db.Column(db.Integer, db.ForeignKey("agent_versions.id"), nullable=False, index=True)
+    scenario = db.Column(db.String(120), nullable=False, index=True)
+    seed = db.Column(db.String(80))
+    outcome = db.Column(db.String(16), nullable=False)
+    score = db.Column(db.Float, nullable=False)
+    duration_ms = db.Column(db.Float)
+    failure_reason = db.Column(db.String(240))
+    extra = db.Column("metadata", db.JSON, nullable=False, default=dict)
+    events = db.Column(db.JSON, nullable=False, default=list)
     agent_version = db.relationship("AgentVersion")
