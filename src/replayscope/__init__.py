@@ -6,6 +6,7 @@ from flask import Flask, jsonify
 from flask_migrate import Migrate
 
 from .models import db
+from .security import configure_security
 
 migrate = Migrate(compare_type=True)
 
@@ -26,14 +27,22 @@ def create_app(test_config=None):
         UPLOAD_DIR=os.getenv("UPLOAD_DIR") or str(Path(app.instance_path) / "uploads"),
         PROCESSING_MODE=os.getenv("PROCESSING_MODE", "inline"),
         REDIS_URL=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
-        # Keep local SQLite quick-start unchanged. Managed databases use migrations.
         AUTO_CREATE_DB=os.getenv("AUTO_CREATE_DB", "0" if external_db_url else "1") == "1",
+        AUTH_ENABLED=os.getenv("REPLAYSCOPE_AUTH_ENABLED", "0") == "1",
+        SECRET_KEY=os.getenv("REPLAYSCOPE_SECRET_KEY"),
+        ADMIN_PASSWORD_HASH=os.getenv("REPLAYSCOPE_ADMIN_PASSWORD_HASH"),
+        API_TOKEN=os.getenv("REPLAYSCOPE_API_TOKEN"),
+        RATELIMIT_STORAGE_URI=os.getenv("REPLAYSCOPE_RATE_STORAGE_URL", "memory://"),
+        SESSION_COOKIE_SECURE=os.getenv("REPLAYSCOPE_SECURE_COOKIE", "0") == "1",
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
     )
     if test_config:
         app.config.update(test_config)
     if app.config["PROCESSING_MODE"] not in ("inline", "rq"):
         raise ValueError("PROCESSING_MODE must be inline or rq")
 
+    configure_security(app)
     db.init_app(app)
     migrate.init_app(app, db)
     from .routes import api

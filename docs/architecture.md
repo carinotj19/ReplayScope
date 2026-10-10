@@ -68,3 +68,27 @@ when both paired runs recorded them.
 This avoids pairing unrelated samples but **does not** alone establish causal
 improvements or statistical significance. Score direction/scale must be
 consistent; use the scenario filter to avoid mixing incompatible metrics.
+
+## Security boundary (local prototype)
+
+Security is optional for localhost development to preserve the simple demo.
+REPLAYSCOPE_AUTH_ENABLED=1 enables the single-operator mode; startup refuses to
+run without a nontrivial SECRET_KEY and an administrator password hash.
+
+- Signed HttpOnly SameSite=Lax session cookies protect the dashboard.
+- POST/PUT/PATCH/DELETE with a browser session require an unpredictable CSRF
+  token. The frontend sends it as X-CSRF-Token.
+- Optional bearer tokens work ONLY on /api/v1 resources and do not depend on
+  browser sessions or CSRF; clients must protect that credential.
+- Login and upload endpoints have per-IP rate limits (5/minute and 30/hour),
+  scoped only to enabled auth mode. Development storage is memory://; real
+  multi-process deployments need shared Redis rate-limit storage.
+- CSP, X-Frame-Options, nosniff and restrictive browser permissions are set.
+  The CSP allows inline styles for existing result-bar widths; script sources
+  are restricted to same-origin code. No inline JavaScript handlers remain.
+- Passwords are checked against a hash supplied through the environment.
+  The app does not implement user registration or multi-user permissions.
+
+This does not imply readiness for public Internet hosting. It still needs
+HTTPS termination, secure cookie configuration, secrets storage, stronger
+operational controls, dependency monitoring and deployment review.

@@ -172,3 +172,17 @@ tbody tr:last-child td{border-bottom:none}
 @media(max-width:1150px){.comparison-layout{grid-template-columns:1fr}}
 @media(max-width:800px){.compare-form{grid-template-columns:1fr 1fr}.compare-form .button{justify-content:center}}
 @media(max-width:480px){.compare-form{grid-template-columns:1fr}.compare-stats{grid-template-columns:1fr}.compare-stat .metric-number{font-size:27px}}
+
+/* Readability and security UI */
+:root{--muted:#a5b2c5}
+.nav-caption,.panel-eyebrow,.eyebrow,.metric-kicker{font-size:11px}
+.metric-detail,.experiment-info small,.version-header small,.version-meta,.fine-print,.upload-name,.panel-description,.trace-details,.footer{font-size:12px}
+.sidebar-foot p,.nav-link,.page-subtitle{font-size:13px}
+.logout-form{margin:0;display:flex;align-items:center}
+.logout-form button{font-size:12px;border:0;background:none;cursor:pointer;white-space:nowrap}
+.login-wrap{display:grid;place-items:center;min-height:100vh;padding:20px}
+.login-card{width:min(100%,420px);padding:38px}
+.login-card h1{font-size:32px;margin:18px 0 10px}
+.login-card .fine-print{padding:0;margin:16px 0 0}
+.login-card label{font-size:13px!important}
+.login-card .comparison-error{margin-top:18px}

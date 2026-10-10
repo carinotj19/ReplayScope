@@ -23,7 +23,7 @@
         <div class="panel-heading"><div><div class="panel-eyebrow">PERFORMANCE</div><h2>Version comparison</h2></div>
           <form method="get" action="{{ url_for('web.experiment_page', experiment_id=experiment.id) }}" class="filter-form">
             <label for="scenario" class="sr-only">Filter by scenario</label>
-            <select id="scenario" name="scenario" onchange="this.form.submit()">
+            <select id="scenario" name="scenario" data-auto-submit>
               <option value="">All scenarios</option>
               {% for scenario in scenarios %}<option value="{{ scenario }}" {% if scope == scenario %}selected{% endif %}>{{ scenario }}</option>{% endfor %}
             </select>

@@ -2,7 +2,7 @@
 
 **ReplayScope** is a Python/Flask dashboard for benchmarking AI-agent behavior: experiments, agent versions, JSON/CSV imports, descriptive outcome rates, and per-run trace events. It is simulation-independent and ships with illustrative sample data.
 
-**Status:** portfolio prototype. Includes a responsive Jinja dashboard, REST API, SQLAlchemy persistence, Alembic schema migrations for managed installations, an optional Redis/RQ worker, automated tests and CI. It is not yet secured for public deployment.
+**Status:** portfolio prototype. Includes a responsive Jinja dashboard, REST API, SQLAlchemy persistence, Alembic schema migrations for managed installations, an optional Redis/RQ worker, automated tests and CI. The optional single-operator protected mode adds login, CSRF protection, API token access, rate limits and browser security headers. This is not yet a production multi-user application.
 
 ## Run the existing Windows demo (SQLite, no Docker required)
 
@@ -17,6 +17,34 @@ Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are
 From the browser: create an experiment, upload examples/benchmark.json or
 examples/benchmark.csv, filter by scenario, inspect runs, and select **Paired comparison** on an experiment.
 JSON events provide simple per-run trace inspection.
+
+## Enable protected single-operator mode (optional)
+
+The normal localhost demo requires **no configuration** and keeps using your
+existing SQLite data. For an opt-in protected demo in Windows PowerShell:
+
+    $env:REPLAYSCOPE_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(48))"
+    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
+    $env:REPLAYSCOPE_AUTH_ENABLED = "1"
+    python -m flask --app replayscope:create_app run --debug
+
+Open http://127.0.0.1:5000/ — the dashboard now redirects to a sign-in page.
+The password is NOT stored in the repository or in SQLite. Configuration above
+exists only for the current PowerShell session. Keep the same
+REPLAYSCOPE_SECRET_KEY across restarts to preserve login sessions. Restarting
+with a different key will sign existing sessions out. Disable protected mode
+again with:
+
+    Remove-Item Env:\REPLAYSCOPE_AUTH_ENABLED
+    Remove-Item Env:\REPLAYSCOPE_ADMIN_PASSWORD_HASH
+    Remove-Item Env:\REPLAYSCOPE_SECRET_KEY
+
+With protected mode enabled, cookie-session API writes require the page's
+CSRF token in the X-CSRF-Token header; the dashboard adds this automatically.
+For programmatic clients, set REPLAYSCOPE_API_TOKEN to a long random value
+before startup and send Authorization: Bearer <token>. Bearer credentials
+authorize API routes only, not the browser dashboard. See
+[the security guide](docs/security.md) for important limitations.
 
 ## Full integration stack (requires Docker Desktop and Compose)
 
@@ -96,5 +124,4 @@ so no new dataset is needed to explore the feature.
 
 See docs/architecture.md and docs/roadmap.md.
 
-**Warning:** No user auth, CSRF defense, public-hosting hardening or per-user
-quotas are implemented. Keep this version on localhost.
+**Warning:** Authentication is off by default for the convenient localhost demo. Protected mode is single-operator only. Do not expose this version to the public Internet; HTTPS, multi-user authorization, secrets management, central rate-limit storage, auditing, and further deployment safeguards require additional work.

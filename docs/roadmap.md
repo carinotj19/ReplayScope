@@ -27,7 +27,11 @@
 - [ ] Production-safe concurrent upserts, retries, structured logs, data retention
 
 ## Security and portfolio release
-- [ ] Authentication/authorization, CSRF defense, rate limits
+- [x] Opt-in single-operator login and hashed-password verification
+- [x] Session CSRF protections, optional bearer API access and 5/min login throttling
+- [x] Rate-limited uploads, defensive response headers and accessible sign-in view
+- [x] Readability polish for smaller dashboard labels
+- [ ] Multi-user authorization, production secrets management and shared Redis rate-limit state
 - [ ] OpenAPI contract and stricter error handling
 - [ ] Statistically justified uncertainty for paired score differences and reproducibility checks
 - [ ] Deployment review, CI/CD, screenshots and interview documentation

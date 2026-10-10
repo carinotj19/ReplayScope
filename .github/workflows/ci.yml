@@ -17,7 +17,7 @@ jobs:
       - name: Verify packaged dashboard templates and static files
         run: |
           python -m pip wheel --no-deps -w /tmp/replayscope-dist .
-          python -c 'import glob,zipfile; z=zipfile.ZipFile(glob.glob("/tmp/replayscope-dist/replayscope-*.whl")[0]); names=set(z.namelist()); assert {"replayscope/templates/base.html","replayscope/templates/home.html","replayscope/templates/experiment.html","replayscope/static/dashboard.js","replayscope/static/styles.css"}.issubset(names), names'
+          python -c 'import glob,zipfile; z=zipfile.ZipFile(glob.glob("/tmp/replayscope-dist/replayscope-*.whl")[0]); names=set(z.namelist()); assert {"replayscope/templates/base.html","replayscope/templates/home.html","replayscope/templates/experiment.html","replayscope/templates/login.html","replayscope/static/dashboard.js","replayscope/static/styles.css"}.issubset(names), names'
 
   infrastructure:
     runs-on: ubuntu-latest

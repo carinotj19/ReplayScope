@@ -1,6 +1,8 @@
 /* Progressive enhancement for the local Flask dashboard. */
 (() => {
   "use strict";
+  const csrf = document.querySelector('meta[name="csrf-token"]')?.content || "";
+  const csrfHeaders = csrf ? { "X-CSRF-Token": csrf } : {};
 
   function message(form, value, isError = false) {
     const target = form.querySelector("[data-form-status]");
@@ -35,7 +37,7 @@
       try {
         const response = await fetch("/api/v1/experiments", {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json", ...csrfHeaders },
           body: JSON.stringify({ name: input.value.trim(), description: description.value }),
         });
         const payload = await decode(response);
@@ -46,6 +48,10 @@
         button.disabled = false;
       }
     });
+  }
+
+  for (const field of document.querySelectorAll("[data-auto-submit]")) {
+    field.addEventListener("change", () => field.form?.requestSubmit());
   }
 
   const uploadForm = document.querySelector("[data-upload-form]");
@@ -90,7 +96,7 @@
       button.disabled = true;
       message(uploadForm, "Validating and uploading…");
       try {
-        const response = await fetch("/api/v1/uploads", { method: "POST", body: form });
+        const response = await fetch("/api/v1/uploads", { method: "POST", headers: csrfHeaders, body: form });
         const upload = await decode(response);
         if (upload.status === "ready") {
           message(uploadForm, "Imported " + upload.run_count + " runs. Reloading…");
