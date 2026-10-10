@@ -1,0 +1,68 @@
+# LOCAL-ONLY integration stack. Deliberately binds the API to 127.0.0.1;
+# it is NOT intended for public deployment without auth and hardening.
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: replayscope
+      POSTGRES_USER: replayscope
+      POSTGRES_PASSWORD: local_dev_only
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U replayscope -d replayscope"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    command: >
+      sh -c "python -m flask --app replayscope:create_app db upgrade &&
+             gunicorn --bind 0.0.0.0:8000 replayscope:create_app\\(\\)"
+    environment: &app_env
+      DATABASE_URL: postgresql+psycopg://replayscope:local_dev_only@postgres:5432/replayscope
+      REDIS_URL: redis://redis:6379/0
+      PROCESSING_MODE: rq
+      AUTO_CREATE_DB: "0"
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - uploads:/data/uploads
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=2)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  worker:
+    build: .
+    command: ["rq", "worker", "replayscope", "--url", "redis://redis:6379/0"]
+    environment: *app_env
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  uploads:
