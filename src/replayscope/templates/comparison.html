@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Paired comparison · {{ experiment.name }}{% endblock %}
+{% block crumb %}<a href="{{ url_for('web.home') }}#experiments">Experiments</a><span>/</span><a href="{{ url_for('web.experiment_page', experiment_id=experiment.id) }}">{{ experiment.name }}</a><span>/</span>Paired comparison{% endblock %}
+{% block content %}
+  <div class="eyebrow"><span class="eyebrow-dot"></span> EXPERIMENT / {{ "%04d"|format(experiment.id) }} / ANALYSIS</div>
+  <div class="heading-row">
+    <div>
+      <h1>Paired comparison<span class="muted-period">.</span></h1>
+      <p class="page-subtitle">Compare two versions using the same scenario and seed—not unrelated aggregate runs.</p>
+    </div>
+    <a class="button button-secondary" href="{{ url_for('web.experiment_page', experiment_id=experiment.id) }}">← Experiment overview</a>
+  </div>
+
+  <section class="panel panel-pad compare-controls">
+    <div class="panel-eyebrow">COMPARE / SELECT A BASELINE</div>
+    <h2>Version pairing</h2>
+    <p class="panel-description">Select two versions of the same agent. Only uniquely matched scenario-and-seed pairs count.</p>
+    <form class="compare-form" method="get" action="{{ url_for('web.compare_page', experiment_id=experiment.id) }}">
+      <div>
+        <label for="baseline_id">Baseline version</label>
+        <select id="baseline_id" name="baseline_id" required>
+          {% for item in versions %}
+            <option value="{{ item.id }}" {% if baseline == item.id %}selected{% endif %}>{{ item.name }} / {{ item.version }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="candidate_id">Candidate version</label>
+        <select id="candidate_id" name="candidate_id" required>
+          {% for item in versions %}
+            <option value="{{ item.id }}" {% if candidate == item.id %}selected{% endif %}>{{ item.name }} / {{ item.version }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div>
+        <label for="scenario">Scenario</label>
+        <select id="scenario" name="scenario">
+          <option value="">All scenarios</option>
+          {% for item in scenarios %}
+            <option value="{{ item }}" {% if scenario == item %}selected{% endif %}>{{ item }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button class="button button-primary" type="submit">Compare <span>→</span></button>
+    </form>
+  </section>
+
+  {% if comparison_error %}
+    <p class="comparison-error" role="alert">{{ comparison_error }}</p>
+  {% elif comparison %}
+    {% set overall = comparison.overall %}
+    <div class="comparison-layout">
+      <div class="primary-column">
+        <section class="panel panel-pad">
+          <div class="panel-eyebrow">MATCHED PERFORMANCE</div>
+          <h2>{{ comparison.agent }} <span class="version-pill">{{ comparison.baseline_version }}</span> → <span class="version-pill">{{ comparison.candidate_version }}</span></h2>
+          <p class="panel-description">Score delta = candidate − baseline. Positive means a higher numerical score; interpretation requires a consistent scoring system.</p>
+          <div class="compare-stats">
+            <div class="compare-stat"><div class="metric-kicker">MATCHED PAIRS</div><div class="metric-number">{{ overall.pairs }}</div><div class="metric-detail">Unique scenario + seed</div></div>
+            <div class="compare-stat"><div class="metric-kicker">MEAN SCORE Δ</div><div class="metric-number {{ 'positive' if overall.mean_score_delta is not none and overall.mean_score_delta > 0 else '' }}">{{ "%+.2f"|format(overall.mean_score_delta) if overall.mean_score_delta is not none else "—" }}</div><div class="metric-detail">Candidate minus baseline</div></div>
+            <div class="compare-stat"><div class="metric-kicker">MEDIAN SCORE Δ</div><div class="metric-number">{{ "%+.2f"|format(overall.median_score_delta) if overall.median_score_delta is not none else "—" }}</div><div class="metric-detail">Across matched pairs</div></div>
+          </div>
+
+          {% if overall.pairs %}
+            <div class="compare-split" aria-label="{{ overall.higher_score }} higher-score pairs, {{ overall.equal_score }} equal-score pairs, {{ overall.lower_score }} lower-score pairs">
+              <span class="higher" style="width: {{ '%.2f'|format(100 * overall.higher_score / overall.pairs) }}%"></span>
+              <span class="equal" style="width: {{ '%.2f'|format(100 * overall.equal_score / overall.pairs) }}%"></span>
+              <span class="lower" style="width: {{ '%.2f'|format(100 * overall.lower_score / overall.pairs) }}%"></span>
+            </div>
+            <div class="compare-legend">
+              <span>Higher <strong>{{ overall.higher_score }}</strong></span>
+              <span>Equal <strong>{{ overall.equal_score }}</strong></span>
+              <span>Lower <strong>{{ overall.lower_score }}</strong></span>
+            </div>
+          {% else %}
+            <div class="empty-state compact"><strong>No unambiguous matches</strong><p>Both versions need exactly one run with the same scenario and seed.</p></div>
+          {% endif %}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><div class="panel-eyebrow">SCENARIO BREAKDOWN</div><h2>Matched outcomes</h2></div><span class="count-pill">{{ comparison.by_scenario|length }} SCENARIOS</span></div>
+          {% if comparison.by_scenario %}
+            <div class="table-scroll"><table class="compare-table"><thead><tr><th>Scenario</th><th>Pairs</th><th>Mean score Δ</th><th>Higher / Equal / Lower</th></tr></thead><tbody>
+              {% for name, item in comparison.by_scenario.items() %}
+                <tr>
+                  <td><strong>{{ name }}</strong></td>
+                  <td class="mono">{{ item.pairs }}</td>
+                  <td class="mono {{ 'positive' if item.mean_score_delta > 0 else 'negative' if item.mean_score_delta < 0 else '' }}">{{ "%+.2f"|format(item.mean_score_delta) }}</td>
+                  <td class="mono">{{ item.higher_score }} / {{ item.equal_score }} / {{ item.lower_score }}</td>
+                </tr>
+              {% endfor %}
+            </tbody></table></div>
+          {% else %}
+            <div class="empty-state compact"><p>No matched scenarios in this scope.</p></div>
+          {% endif %}
+        </section>
+
+        <section class="panel">
+          <div class="panel-heading"><div><div class="panel-eyebrow">PAIRED RUN EXPLORER</div><h2>Matched run sample</h2></div><span class="count-pill">UP TO 50 PAIRS</span></div>
+          {% if comparison.pair_sample %}
+            <div class="table-scroll"><table><thead><tr><th>Scenario / seed</th><th>Baseline</th><th>Candidate</th><th>Score Δ</th><th>Outcome</th></tr></thead><tbody>
+              {% for pair in comparison.pair_sample %}
+                <tr>
+                  <td><strong>{{ pair.scenario }}</strong><small>Seed {{ pair.seed }}</small></td>
+                  <td class="mono">{{ "%.2f"|format(pair.baseline_score) }}</td>
+                  <td class="mono">{{ "%.2f"|format(pair.candidate_score) }}</td>
+                  <td class="mono {{ 'positive' if pair.score_delta > 0 else 'negative' if pair.score_delta < 0 else '' }}">{{ "%+.2f"|format(pair.score_delta) }}</td>
+                  <td>{{ pair.baseline_outcome }} → {{ pair.candidate_outcome }}</td>
+                </tr>
+              {% endfor %}
+            </tbody></table></div>
+            {% if comparison.pair_sample_truncated %}<p class="fine-print">Only the first 50 pairs are listed. Aggregate metrics include every eligible pair.</p>{% endif %}
+          {% else %}
+            <div class="empty-state compact"><p>No matched runs to inspect.</p></div>
+          {% endif %}
+        </section>
+      </div>
+
+      <div class="side-panels">
+        <section class="panel panel-pad">
+          <div class="panel-eyebrow">DATA COVERAGE</div>
+          <h2>Excluded observations</h2>
+          <p class="panel-description">We don't fabricate matches. These counts explain what the pairing algorithm left out.</p>
+          <div class="compare-guide">
+            <p><strong>Baseline missing seed:</strong> {{ comparison.excluded.baseline_unseeded }} runs</p>
+            <p><strong>Candidate missing seed:</strong> {{ comparison.excluded.candidate_unseeded }} runs</p>
+            <p><strong>Baseline-only keys:</strong> {{ comparison.excluded.baseline_only_keys }}</p>
+            <p><strong>Candidate-only keys:</strong> {{ comparison.excluded.candidate_only_keys }}</p>
+            <p><strong>Ambiguous shared keys:</strong> {{ comparison.excluded.ambiguous_overlap_keys }} (duplicate runs on either side)</p>
+          </div>
+        </section>
+        <section class="panel panel-pad note-panel">
+          <div class="panel-eyebrow">INTERPRETATION</div>
+          <h2>What this comparison means</h2>
+          <p>These are descriptive score differences for shared scenario/seed inputs, not statistical proof that a change caused an improvement. Different scenario score scales can make overall means misleading.</p>
+          <p>Duration difference: {{ "%+.0f"|format(overall.mean_duration_delta_ms) ~ " ms" if overall.mean_duration_delta_ms is not none else "Unavailable" }} across {{ overall.timed_pairs }} timed pair(s).</p>
+          <a class="quiet-link" href="{{ url_for('api.paired_comparison', experiment_id=experiment.id, baseline_id=baseline, candidate_id=candidate, scenario=scenario) }}" target="_blank" rel="noopener noreferrer">View comparison JSON ↗</a>
+        </section>
+      </div>
+    </div>
+  {% else %}
+    <div class="panel"><div class="empty-state"><strong>Upload results for two versions</strong><p>Each version needs runs from the same agent. Matching scenario and seed values allow direct comparisons.</p></div></div>
+  {% endif %}
+{% endblock %}
