@@ -1,5 +1,4 @@
-# LOCAL-ONLY integration stack. Deliberately binds the API to 127.0.0.1;
-# it is NOT intended for public deployment without auth and hardening.
+# Local-only demo; no auth or public hardening yet.
 services:
   postgres:
     image: postgres:16-alpine
@@ -25,9 +24,9 @@ services:
 
   api:
     build: .
-    command: >
+    command: >-
       sh -c "python -m flask --app replayscope:create_app db upgrade &&
-             gunicorn --bind 0.0.0.0:8000 replayscope:create_app\\(\\)"
+      gunicorn --bind 0.0.0.0:8000 'replayscope:create_app()'"
     environment: &app_env
       DATABASE_URL: postgresql+psycopg://replayscope:local_dev_only@postgres:5432/replayscope
       REDIS_URL: redis://redis:6379/0
@@ -44,11 +43,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test:
-        - CMD
-        - python
-        - -c
-        - "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=2)"
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health',timeout=2)"]
       interval: 5s
       timeout: 5s
       retries: 12

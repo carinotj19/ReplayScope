@@ -1,31 +1,53 @@
 # ReplayScope architecture
 
-A portfolio Flask app with a **simulation-independent domain**.
+ReplayScope is a portfolio Flask app with a simulation-independent domain.
 
-Flow:
-1. Flask API accepts structured JSON or CSV and experiment reference.
-2. Framework-independent parser validates each run and optional trace events.
-3. Upload bytes are stored with a generated filename and deduplicated by SHA-256 within the experiment.
-4. SQLAlchemy records queued / processing / ready / failed job states.
-5. Inline or Redis/RQ processing turns input into normalized benchmark_runs and agent_versions.
-6. Aggregations provide per-version, per-scenario outcomes, mean score, mean duration, failure labels and rate intervals.
+## Components
 
-Models:
-- Experiment: named set of benchmark runs
-- ReplayUpload: immutable source upload, hash, status, processing details
-- AgentVersion: name/version pair
-- BenchmarkRun: scenario, optional seed, outcome, score, duration, failure reason, metadata and optional trace events
+- Flask app factory registers the API and server-rendered dashboard Blueprints.
+- Pure-Python ingestion validates JSON/CSV benchmark runs and optional trace events.
+- SQLAlchemy stores experiments, uploaded datasets, agent versions and benchmark runs.
+- An upload is SHA-256 deduplicated per experiment; source files use generated names.
+- Processing runs inline for the simple SQLite demo or via Redis/RQ in Compose.
+- Descriptive outcomes, scenario slices, durations, score means and failure labels are exposed through the dashboard and REST API.
 
-**Separation of concerns:** API and persistence stay game-agnostic. JSON events retain simulation trace information without requiring special treatment of planets, fleets or rules from any particular game.
+## Persistence strategy
 
-Rates:
-- Game win rate uses only game outcomes win/loss/draw.
-- Task success rate uses only task outcomes success/failure.
-- Wilson confidence intervals are descriptive and assume independent runs. Comparing matched seeds or scenario distributions requires a separate analysis.
+The original local SQLite demo is automatically created when DATABASE_URL is absent,
+so existing users do not lose their dashboard or historical local tests.
 
-Current constraints:
-- Database creation during app startup is only suitable for development; replace with Alembic.
-- Authentication/authorization, rate limiting, retention, object storage, detailed event schema, audit logging and background retry policies are not yet implemented.
-- The worker and API must share database and upload storage. Docker/Redis end-to-end tests are future work.
-- High-concurrency first-time agent registration needs DB-safe conflict retry/upsert.
-- No causal diagnosis or statistically valid A/B claim is made by the current summaries.
+Managed DBs (DATABASE_URL set) default to AUTO_CREATE_DB=0, and must run
+an explicit Alembic migration before servicing requests.
+
+Migration 0001_initial creates experiments, agent_versions, replay_uploads,
+benchmark_runs, indexes and unique constraints.
+
+Do not run the initial migration directly over a SQLite database created by
+the old db.create_all path. A production migration of existing data requires
+a deliberate schema verification/stamp or a data transfer plan.
+
+## Queue execution
+
+1. Flask validates and stores the source file.
+2. In RQ mode, it enqueues replayscope.jobs.process_upload by upload ID.
+3. An RQ worker loads the same source path using shared UPLOAD_DIR and DATABASE_URL.
+4. The worker updates upload status, persists normalized runs, and marks ready.
+5. Flask polls the status and shows results; errors are surfaced in the UI.
+
+Compose shares a named upload volume between API and worker and a PostgreSQL DB
+between services. CI runs a dedicated PostgreSQL migration/ingestion test and
+an actual Redis queue + SimpleWorker smoke test.
+
+## Rate interpretation
+
+Game win rate uses win/loss/draw; task success rate uses success/failure.
+Wilson intervals assume independent observations. Scores are not normalized,
+so cross-scenario means may be misleading. The dashboard does not make causal
+claims or infer failure root causes.
+
+## Known gaps
+
+This is a local portfolio prototype. Missing: auth, CSRF protection, rate
+limits, safe file retention policy, concurrency-safe upsert for registering
+an AgentVersion simultaneously, RQ retry policies and structured logs.
+The Compose file deliberately binds the web server only to localhost.
