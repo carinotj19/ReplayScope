@@ -51,3 +51,20 @@ This is a local portfolio prototype. Missing: auth, CSRF protection, rate
 limits, safe file retention policy, concurrency-safe upsert for registering
 an AgentVersion simultaneously, RQ retry policies and structured logs.
 The Compose file deliberately binds the web server only to localhost.
+
+## Version pairing
+
+A direct version comparison uses normalized runs from **one experiment** and
+**two versions of the same agent**. A match requires identical scenario and
+nonempty seed values on both sides, with exactly one run for each key. Duplicate
+keys and missing seeds are excluded and counted. Only ready uploads are included.
+
+The result reports candidate-minus-baseline score deltas, descriptive
+mean/median, counts of positive/zero/negative deltas, per-scenario aggregates,
+and up to 50 example pairs. The full set of matched pairs contributes to the
+aggregate even when detail rows are truncated. Durations are compared only
+when both paired runs recorded them.
+
+This avoids pairing unrelated samples but **does not** alone establish causal
+improvements or statistical significance. Score direction/scale must be
+consistent; use the scenario filter to avoid mixing incompatible metrics.

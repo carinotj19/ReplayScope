@@ -196,3 +196,23 @@ def experiment_summary(experiment_id):
     versions.sort(key=lambda row: (row["agent"], row["version"]))
     return jsonify({"experiment_id": experiment_id, "versions": versions,
                     "scope": {"scenario": scenario}})
+
+
+@api.get("/experiments/<int:experiment_id>/compare")
+def paired_comparison(experiment_id):
+    """Compare two versions of one agent using exact scenario/seed matches."""
+    from .comparisons import ComparisonError, compare_versions
+
+    try:
+        baseline = int(request.args["baseline_id"])
+        candidate = int(request.args["candidate_id"])
+    except (KeyError, ValueError, TypeError):
+        return error("baseline_id and candidate_id must be integer query parameters")
+    scenario = request.args.get("scenario", "").strip() or None
+    try:
+        result = compare_versions(experiment_id, baseline, candidate, scenario=scenario)
+    except LookupError as exc:
+        return error(str(exc), 404)
+    except ComparisonError as exc:
+        return error(str(exc), 400)
+    return jsonify(result)

@@ -14,7 +14,8 @@
 - [x] Run history with failure reasons, metadata and event inspection
 - [x] Upload statuses, pagination, browser smoke tests
 - [x] User visual confirmation on Windows
-- [ ] More meaningful time-series analysis, paired comparisons and richer charts
+- [x] Deterministic paired scenario/seed comparisons with explicit excluded-run counts
+- [ ] Confidence intervals for paired deltas, time-series analysis and richer charts
 
 ## Managed databases and background workers (this branch)
 - [x] Flask-Migrate with reviewed initial Alembic revision
@@ -28,5 +29,5 @@
 ## Security and portfolio release
 - [ ] Authentication/authorization, CSRF defense, rate limits
 - [ ] OpenAPI contract and stricter error handling
-- [ ] Fair paired scenario/seed comparisons and confidence statements
+- [ ] Statistically justified uncertainty for paired score differences and reproducibility checks
 - [ ] Deployment review, CI/CD, screenshots and interview documentation

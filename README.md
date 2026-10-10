@@ -15,7 +15,7 @@
 Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
 
 From the browser: create an experiment, upload examples/benchmark.json or
-examples/benchmark.csv, filter by scenario, compare versions, and inspect runs.
+examples/benchmark.csv, filter by scenario, inspect runs, and select **Paired comparison** on an experiment.
 JSON events provide simple per-run trace inspection.
 
 ## Full integration stack (requires Docker Desktop and Compose)
@@ -61,6 +61,7 @@ SQLite database, or you will encounter existing-table conflicts.
 | GET | /api/v1/uploads/{id} | Async processing state |
 | GET | /api/v1/experiments/{id}/runs | Paginated runs with filters |
 | GET | /api/v1/experiments/{id}/summary | Agent/version and scenario summaries |
+| GET | /api/v1/experiments/{id}/compare | Matched seed/scenario score differences (`baseline_id`, `candidate_id`, optional `scenario`) |
 
 Input records require agent, version, scenario, outcome (win/loss/draw or
 success/failure), and finite score. Optional fields: seed, duration_ms,
@@ -70,6 +71,28 @@ Limits: 8 MiB/file, 2,000 runs/file, 500 events/run; duplicate file bytes
 within an experiment are deduplicated. Game win and task success rates are
 calculated separately, with Wilson 95% intervals. Do not infer significance
 from small or unmatched sample runs.
+
+## Paired score comparison
+
+Open an experiment's **Paired comparison** screen. Choose a baseline and
+candidate version of the **same agent**. ReplayScope matches records only when
+they are in the same experiment, with identical `scenario` and nonempty `seed`
+values, and exactly one run per side for each key. Repeated keys are excluded,
+not arbitrarily combined. Missing-seed and unmatched-key counts are displayed.
+
+For each pair, **score delta = candidate score minus baseline score**. The UI
+shows mean and median deltas, counts of higher/equal/lower candidate scores,
+per-scenario breakdowns and a sample of paired rows. The calculation assumes
+higher score is desirable; it does not infer causal improvement or statistical
+significance. Mixed scenarios can have incompatible score scales; filter to a
+single scenario when interpreting score differences.
+
+Example direct API request (experiment ID 1, agent-version IDs 1 and 2):
+
+    Invoke-RestMethod "http://127.0.0.1:5000/api/v1/experiments/1/compare?baseline_id=1&candidate_id=2"
+
+Existing sample `examples/benchmark.json` includes matched Pathfinder seeds,
+so no new dataset is needed to explore the feature.
 
 See docs/architecture.md and docs/roadmap.md.
 
