@@ -23,5 +23,8 @@ prod = ["psycopg[binary]>=3.2,<4", "gunicorn>=22,<24"]
 [tool.setuptools.packages.find]
 where = ["src"]
 
+[tool.setuptools.package-data]
+replayscope = ["templates/*.html", "static/*.css", "static/*.js"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
