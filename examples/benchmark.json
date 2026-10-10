@@ -1,0 +1,33 @@
+{
+  "runs": [
+    {
+      "agent": "Pathfinder", "version": "1.0", "scenario": "maze-small",
+      "seed": 101, "outcome": "win", "score": 90, "duration_ms": 320,
+      "metadata": {"difficulty": "easy"},
+      "events": [{"type": "move", "step": 1, "position": [1, 2]}]
+    },
+    {
+      "agent": "Pathfinder", "version": "1.1", "scenario": "maze-small",
+      "seed": 101, "outcome": "win", "score": 96, "duration_ms": 260,
+      "events": [{"type": "move", "step": 1, "position": [1, 3]}]
+    },
+    {
+      "agent": "Pathfinder", "version": "1.0", "scenario": "maze-hard",
+      "seed": 202, "outcome": "loss", "score": 35, "duration_ms": 890,
+      "failure_reason": "timeout"
+    },
+    {
+      "agent": "Pathfinder", "version": "1.1", "scenario": "maze-hard",
+      "seed": 202, "outcome": "win", "score": 70, "duration_ms": 680
+    },
+    {
+      "agent": "Classifier", "version": "baseline", "scenario": "document-labeling",
+      "seed": "sample-a", "outcome": "success", "score": 0.92, "duration_ms": 45
+    },
+    {
+      "agent": "Classifier", "version": "baseline", "scenario": "document-labeling",
+      "seed": "sample-b", "outcome": "failure", "score": 0.38, "duration_ms": 42,
+      "failure_reason": "incorrect_label"
+    }
+  ]
+}
