@@ -13,8 +13,11 @@ from flask import (
     render_template, request, session, url_for,
 )
 from werkzeug.security import check_password_hash
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 
 security = Blueprint("security", __name__)
+limiter = Limiter(key_func=get_remote_address, default_limits=[])
 
 
 def csrf_token():
@@ -55,6 +58,7 @@ def login_page():
 
 
 @security.post("/login")
+@limiter.limit("5 per minute", exempt_when=lambda: not current_app.config["AUTH_ENABLED"])
 def login():
     if not current_app.config["AUTH_ENABLED"]:
         abort(404)
@@ -93,6 +97,7 @@ def configure_security(app):
     app.config.setdefault("SESSION_COOKIE_SAMESITE", "Lax")
     app.config.setdefault("SESSION_COOKIE_SECURE", False)
     app.permanent_session_lifetime = timedelta(hours=8)
+    limiter.init_app(app)
     app.register_blueprint(security)
     app.jinja_env.globals["csrf_token"] = csrf_token
 

@@ -9,6 +9,7 @@ from sqlalchemy.exc import IntegrityError
 from .ingestion import DatasetError, parse_dataset
 from .models import AgentVersion, BenchmarkRun, Experiment, ReplayUpload, db
 from .stats import summarize
+from .security import limiter
 
 api = Blueprint("api", __name__)
 
@@ -65,6 +66,7 @@ def list_agent_versions():
     return jsonify([{"id": a.id, "name": a.name, "version": a.version} for a in versions])
 
 @api.post("/uploads")
+@limiter.limit("30 per hour", exempt_when=lambda: not current_app.config["AUTH_ENABLED"])
 def upload_dataset():
     file = request.files.get("file")
     if file is None or not file.filename:

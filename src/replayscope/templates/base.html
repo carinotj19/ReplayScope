@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="dark">
+  {% if config.AUTH_ENABLED %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
   <title>{% block title %}ReplayScope{% endblock %} — ReplayScope</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
@@ -23,15 +24,15 @@
         <a class="nav-link" href="{{ url_for('web.home') }}#recent-uploads"><span class="nav-icon">⇪</span> Imports</a>
       </nav>
       <div class="sidebar-foot">
-        <span class="status-dot"></span> LOCAL DEVELOPMENT
-        <p>ReplayScope v0.2<br>Flask analytics workspace</p>
+        <span class="status-dot"></span> {{ "PROTECTED SESSION" if config.AUTH_ENABLED else "LOCAL DEVELOPMENT" }}
+        <p>ReplayScope v0.4<br>Flask analytics workspace</p>
       </div>
     </aside>
 
     <main class="main" id="main">
       <header class="topbar">
         <div class="crumbs"><a href="{{ url_for('web.home') }}">Workspace</a><span>/</span>{% block crumb %}Overview{% endblock %}</div>
-        <div class="topbar-right"><span class="environment-pill"><span class="status-dot"></span> DEVELOPMENT</span><span class="avatar" aria-hidden="true">RS</span></div>
+        <div class="topbar-right"><span class="environment-pill"><span class="status-dot"></span> {{ "PROTECTED" if config.AUTH_ENABLED else "LOCAL DEMO" }}</span>{% if config.AUTH_ENABLED %}<form class="logout-form" action="{{ url_for('security.logout') }}" method="post"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="quiet-link" type="submit">Sign out</button></form>{% endif %}<span class="avatar" aria-hidden="true">RS</span></div>
       </header>
       <div class="content">
         {% block content %}{% endblock %}

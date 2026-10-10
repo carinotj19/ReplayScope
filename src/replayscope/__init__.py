@@ -32,6 +32,7 @@ def create_app(test_config=None):
         SECRET_KEY=os.getenv("REPLAYSCOPE_SECRET_KEY"),
         ADMIN_PASSWORD_HASH=os.getenv("REPLAYSCOPE_ADMIN_PASSWORD_HASH"),
         API_TOKEN=os.getenv("REPLAYSCOPE_API_TOKEN"),
+        RATELIMIT_STORAGE_URI=os.getenv("REPLAYSCOPE_RATE_STORAGE_URL", "memory://"),
         SESSION_COOKIE_SECURE=os.getenv("REPLAYSCOPE_SECURE_COOKIE", "0") == "1",
         SESSION_COOKIE_HTTPONLY=True,
         SESSION_COOKIE_SAMESITE="Lax",
