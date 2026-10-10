@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sign in · ReplayScope</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="login-wrap">
+    <section class="panel panel-pad login-card">
+      <div class="eyebrow"><span class="eyebrow-dot"></span> SECURE WORKSPACE</div>
+      <h1>Welcome back<span class="muted-period">.</span></h1>
+      <p class="page-subtitle">Sign in to your ReplayScope dashboard.</p>
+      {% if error %}<p class="comparison-error" role="alert">{{ error }}</p>{% endif %}
+      <form method="post" action="{{ url_for('security.login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_value }}">
+        <label for="password">Administrator password</label>
+        <input id="password" type="password" name="password"
+               required autocomplete="current-password" autofocus>
+        <button class="button button-primary full" type="submit">Sign in <span>→</span></button>
+      </form>
+      <p class="fine-print">Single-operator access · Your data stays in your configured database.</p>
+    </section>
+  </main>
+</body>
+</html>
