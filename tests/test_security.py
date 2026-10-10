@@ -105,3 +105,40 @@ def test_auth_config_fails_closed(tmp_path):
                     "SECRET_KEY": "short",
                     "ADMIN_PASSWORD_HASH": generate_password_hash(PASSWORD),
                     "SQLALCHEMY_DATABASE_URI": "sqlite:///" + str(tmp_path / "bad2.db")})
+
+
+def test_login_rate_limit(client):
+    token = csrf(client)
+    for _ in range(5):
+        response = client.post("/login", data={
+            "password": "incorrect", "csrf_token": token,
+        }, environ_base={"REMOTE_ADDR": "198.51.100.77"})
+        assert response.status_code == 401
+    result = client.post("/login", data={
+        "password": PASSWORD, "csrf_token": token,
+    }, environ_base={"REMOTE_ADDR": "198.51.100.77"})
+    assert result.status_code == 429
+
+
+def test_browser_upload_with_csrf(client):
+    import io
+    import json
+
+    token = sign_in(client)
+    result = client.post("/api/v1/experiments", json={"name": "Secure ingestion"},
+                         headers={"X-CSRF-Token": token})
+    assert result.status_code == 201
+    runs = {"runs": [{
+        "agent": "SecuredBot", "version": "1", "scenario": "sample",
+        "outcome": "success", "score": 1,
+    }]}
+    multipart = {
+        "experiment_id": str(result.json["id"]),
+        "file": (io.BytesIO(json.dumps(runs).encode()), "test.json"),
+    }
+    assert client.post("/api/v1/uploads", data=multipart).status_code == 403
+    multipart["file"] = (io.BytesIO(json.dumps(runs).encode()), "test.json")
+    authorized = client.post("/api/v1/uploads", data=multipart,
+                             headers={"X-CSRF-Token": token})
+    assert authorized.status_code == 201
+    assert authorized.json["status"] == "ready"
