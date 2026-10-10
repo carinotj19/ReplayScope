@@ -5,7 +5,10 @@
   <div class="eyebrow"><span class="eyebrow-dot"></span> EXPERIMENT / {{ "%04d"|format(experiment.id) }}</div>
   <div class="heading-row">
     <div><h1>{{ experiment.name }}<span class="muted-period">.</span></h1><p class="page-subtitle">{{ experiment.description or 'Benchmark performance and trace exploration' }}</p></div>
-    <a class="button button-secondary" href="#upload-dataset">⇪ Import data</a>
+    <div class="heading-actions">
+      <a class="button button-secondary" href="{{ url_for('web.compare_page', experiment_id=experiment.id, scenario=scope) }}">⇄ Paired comparison</a>
+      <a class="button button-secondary" href="#upload-dataset">⇪ Import data</a>
+    </div>
   </div>
 
   <div class="experiment-layout">
@@ -88,7 +91,7 @@
         {% endif %}
       </section>
 
-      <section class="panel panel-pad note-panel"><div class="panel-eyebrow">HOW TO READ</div><h2>A note on results</h2><p>Win rate and task success rate are not interchangeable. This dashboard summarizes observations; fair paired comparisons are a later feature.</p><a href="{{ url_for('api.experiment_summary', experiment_id=experiment.id) }}" target="_blank" rel="noopener noreferrer" class="quiet-link">View JSON response ↗</a></section>
+      <section class="panel panel-pad note-panel"><div class="panel-eyebrow">HOW TO READ</div><h2>A note on results</h2><p>Win rate and task success rate are not interchangeable. This dashboard summarizes observations; paired comparisons of matching scenarios and seeds are available on the comparison page.</p><a href="{{ url_for('api.experiment_summary', experiment_id=experiment.id) }}" target="_blank" rel="noopener noreferrer" class="quiet-link">View JSON response ↗</a></section>
     </div>
   </div>
 {% endblock %}
