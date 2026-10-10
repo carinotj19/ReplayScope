@@ -1,51 +1,64 @@
 # ReplayScope
 
-ReplayScope is a Python/Flask platform for ingesting AI-agent match replays, tracking experiments, and analyzing results. Its first adapter targets Kaggle Orbit Wars (2P and 4P).
+ReplayScope is a Python/Flask backend for ingesting **simulation and AI-agent benchmark results**, tracking agent versions, and comparing experiments. It is deliberately simulation-independent: no external competition API, active simulation engine, or trained model is necessary.
 
-Status: v0.1 API foundation on a feature branch, pending CI and real-replay verification.
+**Status:** portfolio foundation — structured JSON/CSV ingestion, versioned REST API, SQLAlchemy persistence, Redis/RQ option, descriptive statistics, tests and CI. Dashboard, authentication, migrations and production hosting are subsequent milestones.
 
-## Stack
+## Run locally (Windows PowerShell)
 
-Python 3.11+, Flask application factory, Flask-SQLAlchemy, SQLite for local development, Redis/RQ job processing, Pytest, GitHub Actions. PostgreSQL and server-rendered analytics dashboards are planned.
-
-## Run locally
-
-Create and activate a virtual environment, then run:
-
+    py -3 -m venv .venv
+    .\.venv\Scripts\Activate.ps1
     python -m pip install -e ".[dev]"
     flask --app replayscope:create_app run --debug
 
-On Windows PowerShell the activation command is:
-
-    .\.venv\Scripts\Activate.ps1
-
-Default processing is inline for a zero-infrastructure demo. To use Redis/RQ instead, set REPLAYSCOPE_JOBS=rq and REDIS_URL=redis://localhost:6379/0 in both the Flask and worker environments, then run:
-
-    rq worker replay-analysis --url redis://localhost:6379/0
-
-Redis must be started separately. The API and worker must share the same DATABASE_URL and instance upload directory. The default SQLite setup is intended for a single-machine local demo.
-
-## API
-
-- GET /health
-- POST /api/agent-versions with JSON name and version
-- GET /api/agent-versions
-- POST /api/experiments with JSON name
-- GET /api/experiments
-- POST /api/replays as multipart file (.json), experiment_id, agent_version_id, player_slot
-- GET /api/replays/{id}
-- GET /api/experiments/{id}/summary
-
-Example PowerShell requests:
-
-    $agent = Invoke-RestMethod -Method Post -Uri http://localhost:5000/api/agent-versions -ContentType 'application/json' -Body '{"name":"OrbitBot","version":"v2"}'
-    $exp = Invoke-RestMethod -Method Post -Uri http://localhost:5000/api/experiments -ContentType 'application/json' -Body '{"name":"Baseline"}'
-    curl.exe -X POST http://localhost:5000/api/replays -F "file=@C:\path\episode.json" -F "experiment_id=$($exp.id)" -F "agent_version_id=$($agent.id)" -F "player_slot=0"
-
-Run automated tests:
+Run the tests with:
 
     python -m pytest -q
 
-Current replay outputs: final ship score, rank, outcome, high-production-loss count, production/ship timeline, turn milestones and descriptive signals. Experiment summaries include mode-specific win rate and Wilson 95% intervals.
+## Demo workflow
 
-This release has no user authentication and initializes its development database automatically. Do not deploy publicly without production hardening. See docs/architecture.md and docs/roadmap.md.
+Create an experiment, then upload the included sample data:
+
+    $experiment = Invoke-RestMethod -Method Post -Uri http://127.0.0.1:5000/api/v1/experiments -ContentType 'application/json' -Body '{"name":"Portfolio demo"}'
+    curl.exe -X POST http://127.0.0.1:5000/api/v1/uploads -F "experiment_id=$($experiment.id)" -F "file=@examples/benchmark.json"
+    Invoke-RestMethod "http://127.0.0.1:5000/api/v1/experiments/$($experiment.id)/summary"
+
+The example data is **illustrative**, not a claim of real experiment performance. A CSV example is also provided.
+
+## REST API
+
+| Method | Endpoint | Role |
+| --- | --- | --- |
+| GET | /health | Basic health |
+| GET, POST | /api/v1/experiments | List/create experiments |
+| GET | /api/v1/agent-versions | Agent versions registered through ingestion |
+| POST | /api/v1/uploads | Multipart JSON/CSV file + experiment_id |
+| GET | /api/v1/uploads/{id} | Processing status and row count |
+| GET | /api/v1/experiments/{id}/runs | Paginated runs, optional scenario and agent_version_id filters |
+| GET | /api/v1/experiments/{id}/summary | Grouped version/scenario statistics, optional scenario filter |
+
+## Dataset contract
+
+JSON accepts a list of runs or an object with a runs array; CSV accepts one run per row. Each record requires the following keys:
+
+- agent: nonempty name
+- version: nonempty version label
+- scenario: task / environment / test-case name
+- outcome: win, loss, draw, success or failure
+- score: finite number
+
+Optional: seed (string or integer), duration_ms (nonnegative finite number), failure_reason (string), metadata (JSON object), events (array of JSON objects each including a type string). CSV supports scalar fields only; JSON supports metadata and events.
+
+Current limits: 8 MiB per upload, 2,000 runs per file and 500 events per run. Duplicate file bytes within an experiment return the existing upload record.
+
+**Game win rate** = wins / (wins + losses + draws). **Task success rate** = successes / (successes + failures). They are reported separately, with the underlying counts and Wilson 95% intervals. Scores are unitless and should only be compared between compatible scenarios. Failure reasons are user-provided labels, not inferred causes.
+
+## Async option
+
+The default uses inline processing so the demo works without Redis. For a Redis/RQ worker, set PROCESSING_MODE=rq and REDIS_URL=redis://localhost:6379/0, and set DATABASE_URL and UPLOAD_DIR to shared locations in both API and worker environments. Then start:
+
+    rq worker replayscope --url redis://localhost:6379/0
+
+A Redis server must be running. Local SQLite and disk storage are for development only. Do not deploy this version on a public URL without authentication, safe migrations and production storage protections.
+
+See docs/architecture.md and docs/roadmap.md.

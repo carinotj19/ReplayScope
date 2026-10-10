@@ -4,11 +4,16 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "replayscope"
-version = "0.1.0"
-description = "AI agent replay benchmarking built with Flask"
+version = "0.2.0"
+description = "Simulation-independent benchmark ingestion and analytics with Flask"
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = ["Flask>=3.1,<4", "Flask-SQLAlchemy>=3.1,<4", "redis>=5,<7", "rq>=2,<3"]
+dependencies = [
+  "Flask>=3.1,<4",
+  "Flask-SQLAlchemy>=3.1,<4",
+  "redis>=5,<7",
+  "rq>=2,<3"
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8,<10"]

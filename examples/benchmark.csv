@@ -1,0 +1,7 @@
+agent,version,scenario,seed,outcome,score,duration_ms,failure_reason
+Pathfinder,1.0,maze-small,101,win,90,320,
+Pathfinder,1.1,maze-small,101,win,96,260,
+Pathfinder,1.0,maze-hard,202,loss,35,890,timeout
+Pathfinder,1.1,maze-hard,202,win,70,680,
+Classifier,baseline,document-labeling,sample-a,success,0.92,45,
+Classifier,baseline,document-labeling,sample-b,failure,0.38,42,incorrect_label
