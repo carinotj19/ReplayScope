@@ -1,8 +1,10 @@
 # ReplayScope
 
+**v1.0.0 · Local portfolio release** · [Release notes and acceptance checklist](docs/release-v1.md) · [Deployment limitations](docs/deployment-readiness.md)
+
 **Observe, benchmark and compare AI-agent runs.** ReplayScope is a simulator-independent Python/Flask portfolio project that ingests benchmark datasets, stores normalized runs, and makes performance comparisons inspectable through a web dashboard and REST API.
 
-> **Project status:** A functioning **local portfolio prototype**, not a public SaaS product. Data supplied by the demo generator is explicitly **synthetic**. Public deployment needs the additional safeguards in [the readiness checklist](docs/deployment-readiness.md).
+> **Project status:** A functioning **local portfolio MVP**, not a public SaaS product. Data supplied by the demo generator is explicitly **synthetic**. Public deployment needs the additional safeguards in [the readiness checklist](docs/deployment-readiness.md).
 
 ## What you can do
 
@@ -84,8 +86,11 @@ The generator uses deterministic arithmetic, **not** a learned policy or an expe
 
 ## Test the application
 
+From the repository root, run the automated release audit alongside the test suite:
+
 ```powershell
 py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
+py scripts/release_audit.py
 ```
 
 The two PostgreSQL/Redis integration tests are intentionally skipped if those services aren't configured on your computer. GitHub Actions runs them using service containers.
@@ -191,4 +196,4 @@ Do not expose the existing Docker example on the public Internet: its credential
 - [Security configuration](docs/security.md) — opt-in single-admin behavior and known gaps.
 - [Development roadmap](docs/roadmap.md) — completed and planned work.
 
-ReplayScope remains under active development. Avoid describing it as production-ready or claiming the synthetic benchmark results reflect real AI-agent performance.
+**Release scope:** v1.0.0 is a complete, demonstrable **local portfolio MVP**. Public deployment and multi-user security remain outside this release. Avoid describing synthetic results as real AI-agent performance.
