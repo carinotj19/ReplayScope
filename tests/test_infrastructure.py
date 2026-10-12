@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import inspect
 
 from replayscope import create_app
-from replayscope.models import BenchmarkRun, ReplayUpload, db
+from replayscope.models import AgentVersion, BenchmarkRun, ReplayUpload, db
 
 
 def _payload():
@@ -74,6 +74,19 @@ def test_postgresql_migration_and_ingestion(tmp_path):
         exp, upload = _create_and_upload(client)
         assert upload["status"] == "ready"
         assert client.get(f"/api/v1/experiments/{exp}/summary").json["versions"][0]["overall"]["task_success_rate"] == 1.0
+        # A second experiment reusing the exact same version must not
+        # register a duplicate agent/version row in PostgreSQL.
+        other = client.post("/api/v1/experiments", json={"name": "Integration second"}).json["id"]
+        response = client.post("/api/v1/uploads", data={
+            "experiment_id": str(other),
+            "file": (io.BytesIO(_payload()), "benchmark.json"),
+        })
+        assert response.status_code == 201
+        assert response.json["status"] == "ready"
+        with app.app_context():
+            assert db.session.query(AgentVersion).filter_by(
+                name="IntegrationBot", version="1.0"
+            ).count() == 1
 
 
 @pytest.mark.skipif(not os.getenv("RUN_REDIS_TESTS"), reason="Redis CI service not configured")

@@ -92,3 +92,24 @@ run without a nontrivial SECRET_KEY and an administrator password hash.
 This does not imply readiness for public Internet hosting. It still needs
 HTTPS termination, secure cookie configuration, secrets storage, stronger
 operational controls, dependency monitoring and deployment review.
+
+## Worker reliability update
+
+The worker claims an upload atomically with `UPDATE ... WHERE status IN
+('queued', 'failed')`, commits the claim, and returns early if a second worker
+already holds the `processing` state or the upload is `ready`. Imports replace
+prior rows as one transaction. SQLite and PostgreSQL conflict-safe insertion
+prevents a uniqueness violation when different uploads encounter the same
+agent/version combination concurrently.
+
+RQ uses retry delays of 10/60/180 seconds for unexpected exceptions. Known
+invalid input becomes `failed` without an automatic queue retry. An operator
+can use the `recover-upload` command to reprocess failed jobs. A stranded
+`processing` record requires `--force-stuck` only after the original worker
+is known to have stopped. The CLI runs processing inline so no Redis or Docker
+is needed for manual recovery.
+
+**Remaining limitation:** No worker lease or heartbeat distinguishes a slow live
+worker from a dead worker. Manual forced recovery is unsafe if the original
+worker is still operating. Higher-level job deduplication and concurrency
+semantics require a multi-worker stress test, not just unit coverage.
