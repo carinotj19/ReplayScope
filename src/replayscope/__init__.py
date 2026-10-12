@@ -60,6 +60,8 @@ def create_app(test_config=None):
     app.register_blueprint(docs_ui)
     from .demo import register_demo_cli
     register_demo_cli(app)
+    from .recovery import register_recovery_cli
+    register_recovery_cli(app)
 
     @app.get("/favicon.ico")
     def favicon():

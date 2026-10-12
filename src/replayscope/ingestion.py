@@ -8,6 +8,10 @@ from dataclasses import dataclass
 ALLOWED_OUTCOMES = frozenset({"win", "loss", "draw", "success", "failure"})
 MAX_RUNS = 2000
 MAX_EVENTS_PER_RUN = 500
+MAX_NESTING_DEPTH = 10
+MAX_NESTED_NODES = 6000
+MAX_NESTED_STRING = 2048
+MAX_NESTED_KEY = 128
 
 class DatasetError(ValueError):
     """Invalid user-provided benchmark input."""
@@ -51,6 +55,46 @@ def _number(row, key, required=True, nonnegative=False):
         raise DatasetError(f"{key} must be a finite {'nonnegative ' if nonnegative else ''}number")
     return number
 
+def _validate_nested(value, field):
+    """Iteratively bound arbitrary metadata/trace structures before storage.
+
+    The limit applies to each run's complete nested payload. Iterative
+    traversal avoids Python recursion limits on intentionally deep input.
+    """
+    stack = [(value, 0)]
+    nodes = 0
+    while stack:
+        current, depth = stack.pop()
+        nodes += 1
+        if nodes > MAX_NESTED_NODES:
+            raise DatasetError(f"{field} exceeds the nested value limit")
+        if depth > MAX_NESTING_DEPTH:
+            raise DatasetError(f"{field} exceeds maximum nesting depth")
+        if isinstance(current, dict):
+            if len(current) > 2000:
+                raise DatasetError(f"{field} has too many object keys")
+            for key, item in current.items():
+                if not isinstance(key, str) or len(key) > MAX_NESTED_KEY:
+                    raise DatasetError(f"{field} contains an invalid object key")
+                stack.append((item, depth + 1))
+        elif isinstance(current, list):
+            if len(current) > MAX_NESTED_NODES:
+                raise DatasetError(f"{field} contains an oversized array")
+            stack.extend((item, depth + 1) for item in current)
+        elif isinstance(current, str):
+            if len(current) > MAX_NESTED_STRING:
+                raise DatasetError(f"{field} contains an oversized string")
+        elif isinstance(current, (float, int)) and not isinstance(current, bool):
+            try:
+                finite = math.isfinite(float(current))
+            except (ValueError, TypeError, OverflowError):
+                finite = False
+            if not finite:
+                raise DatasetError(f"{field} contains a nonfinite number")
+        elif current is not None and not isinstance(current, bool):
+            raise DatasetError(f"{field} contains an unsupported value")
+
+
 def _run(row):
     if not isinstance(row, dict):
         raise DatasetError("Each run must be an object or CSV row")
@@ -74,8 +118,9 @@ def _run(row):
         raise DatasetError("metadata must be an object")
     if not isinstance(events, list) or len(events) > MAX_EVENTS_PER_RUN:
         raise DatasetError(f"events must be an array with at most {MAX_EVENTS_PER_RUN} entries")
-    if any(not isinstance(e, dict) or not isinstance(e.get("type"), str) or not e["type"].strip() for e in events):
-        raise DatasetError("each event must contain a nonempty type string")
+    if any(not isinstance(e, dict) or not isinstance(e.get("type"), str) or not e["type"].strip() or len(e["type"]) > 120 for e in events):
+        raise DatasetError("each event must contain a nonempty type string (max 120 characters)")
+    _validate_nested({"metadata": metadata, "events": events}, "metadata/events")
     return RunData(
         agent=agent, version=version, scenario=scenario, outcome=outcome,
         score=_number(row, "score"), seed=seed,
@@ -91,7 +136,7 @@ def parse_dataset(raw: bytes, file_format: str) -> list[RunData]:
     if file_format == "json":
         try:
             payload = json.loads(text, parse_constant=lambda s: (_ for _ in ()).throw(DatasetError("Nonfinite JSON value")))
-        except ValueError as exc:
+        except (ValueError, RecursionError) as exc:
             raise DatasetError("Invalid JSON") from exc
         rows = payload.get("runs") if isinstance(payload, dict) else payload
     elif file_format == "csv":
@@ -99,6 +144,8 @@ def parse_dataset(raw: bytes, file_format: str) -> list[RunData]:
             reader = csv.DictReader(io.StringIO(text, newline=""), strict=True)
             if not reader.fieldnames or not {"agent", "version", "scenario", "outcome", "score"}.issubset(reader.fieldnames):
                 raise DatasetError("CSV requires agent, version, scenario, outcome, score headers")
+            if len(set(reader.fieldnames)) != len(reader.fieldnames):
+                raise DatasetError("CSV contains duplicate column headers")
             rows = list(reader)
             if any(None in row for row in rows):
                 raise DatasetError("CSV contains extra columns")
