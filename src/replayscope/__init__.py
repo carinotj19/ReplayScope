@@ -34,6 +34,8 @@ def create_app(test_config=None):
         MAX_CONTENT_LENGTH=8 * 1024 * 1024,
         UPLOAD_DIR=os.getenv("UPLOAD_DIR") or str(Path(app.instance_path) / "uploads"),
         PROCESSING_MODE=os.getenv("PROCESSING_MODE", "inline"),
+        UPLOAD_LEASE_SECONDS=int(os.getenv("REPLAYSCOPE_LEASE_SECONDS", "120")),
+        UPLOAD_HEARTBEAT_SECONDS=int(os.getenv("REPLAYSCOPE_HEARTBEAT_SECONDS", "20")),
         REDIS_URL=os.getenv("REDIS_URL", "redis://localhost:6379/0"),
         AUTO_CREATE_DB=os.getenv("AUTO_CREATE_DB", "0" if external_db_url else "1") == "1",
         AUTH_ENABLED=os.getenv("REPLAYSCOPE_AUTH_ENABLED", "0") == "1",
@@ -47,6 +49,10 @@ def create_app(test_config=None):
     )
     if test_config:
         app.config.update(test_config)
+    if not (15 <= app.config["UPLOAD_LEASE_SECONDS"] <= 86400):
+        raise ValueError("UPLOAD_LEASE_SECONDS must be between 15 and 86400")
+    if not (1 <= app.config["UPLOAD_HEARTBEAT_SECONDS"] * 3 < app.config["UPLOAD_LEASE_SECONDS"]):
+        raise ValueError("UPLOAD_HEARTBEAT_SECONDS must be at least 1 and below one third of lease duration")
     if app.config["PROCESSING_MODE"] not in ("inline", "rq"):
         raise ValueError("PROCESSING_MODE must be inline or rq")
 
