@@ -100,3 +100,31 @@ def test_csv(client):
 def test_pagination_errors(client):
     exp = new_experiment(client)
     assert client.get(f"/api/v1/experiments/{exp}/runs?page=0").status_code == 400
+
+
+def test_api_returns_json_for_404_and_large_payload(client):
+    missing = client.get("/api/v1/not-a-real-endpoint")
+    assert missing.status_code == 404
+    assert "error" in missing.json
+
+    limit = client.application.config["MAX_CONTENT_LENGTH"]
+    client.application.config["MAX_CONTENT_LENGTH"] = 120
+    try:
+        result = client.post("/api/v1/experiments",
+                             data=b"X" * 512,
+                             content_type="application/json")
+        assert result.status_code == 413
+        assert "error" in result.json
+    finally:
+        client.application.config["MAX_CONTENT_LENGTH"] = limit
+
+
+def test_api_filters_reject_oversized_scenario(client):
+    exp = experiment(client)
+    scenario = "x" * 121
+    assert client.get(
+        f"/api/v1/experiments/{exp}/runs?scenario={scenario}"
+    ).status_code == 400
+    assert client.get(
+        f"/api/v1/experiments/{exp}/summary?scenario={scenario}"
+    ).status_code == 400

@@ -14,6 +14,8 @@
 
 Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
 
+The interactive **API reference** is at http://127.0.0.1:5000/docs and the downloadable OpenAPI 3.1 specification is at http://127.0.0.1:5000/api/v1/openapi.json . Both are linked from the dashboard. Errors from /api/v1 now return JSON (including 404 and oversized requests).
+
 From the browser: create an experiment, upload examples/benchmark.json or
 examples/benchmark.csv, filter by scenario, inspect runs, and select **Paired comparison** on an experiment.
 JSON events provide simple per-run trace inspection.
@@ -80,9 +82,13 @@ SQLite database, or you will encounter existing-table conflicts.
 
 ## API
 
+The version-controlled OpenAPI specification documents parameters, response schemas, codes, and authorization conventions. The human-readable Flask route at /docs renders those operation descriptions without an external hosted service. When protected mode is enabled, the reference is accessible after sign-in (or the JSON contract via bearer token).
+
+
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | /health | Service health |
+| GET | /api/v1/openapi.json | Machine-readable OpenAPI 3.1 contract |
 | GET, POST | /api/v1/experiments | Experiments |
 | GET | /api/v1/agent-versions | Versions created during ingestion |
 | POST | /api/v1/uploads | Multipart file + experiment_id |

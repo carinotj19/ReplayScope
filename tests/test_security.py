@@ -142,3 +142,14 @@ def test_browser_upload_with_csrf(client):
                              headers={"X-CSRF-Token": token})
     assert authorized.status_code == 201
     assert authorized.json["status"] == "ready"
+
+
+def test_protected_docs_and_favicon(client):
+    assert client.get("/docs").status_code == 302
+    assert client.get("/api/v1/openapi.json").status_code == 401
+    assert client.get("/favicon.ico").status_code == 302
+    assert client.get("/static/favicon.svg").status_code == 200
+    assert client.get("/api/v1/openapi.json",
+                      headers={"Authorization": "Bearer " + "t"*48}).status_code == 200
+    sign_in(client)
+    assert client.get("/docs").status_code == 200
