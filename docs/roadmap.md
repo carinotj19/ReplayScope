@@ -1,40 +1,35 @@
 # ReplayScope roadmap
 
-## Flask backend foundation
-- [x] Simulation-independent JSON and CSV benchmark schema
-- [x] Experiment, upload, agent version and normalized run storage
-- [x] Status tracking, SHA-256 deduplication and worker entrypoint
-- [x] REST API, Pytest and GitHub Actions
-- [x] Local upload-to-summary workflow verified on Windows
+## Completed: local Flask engineering foundation
 
-## Portfolio dashboard
-- [x] Responsive Flask/Jinja experiment overview and detail pages
-- [x] Experiment creation and JSON/CSV browser uploads
-- [x] Scenario-filtered version comparisons
-- [x] Run history with failure reasons, metadata and event inspection
-- [x] Upload statuses, pagination, browser smoke tests
-- [x] User visual confirmation on Windows
-- [x] Deterministic paired scenario/seed comparisons with explicit excluded-run counts
-- [ ] Confidence intervals for paired deltas, time-series analysis and richer charts
+- [x] Simulation-agnostic JSON and CSV benchmark schema, parser and validator
+- [x] Experiment, upload, agent version and normalized run persistence
+- [x] Content-hash deduplication, processing states and upload/summary REST APIs
+- [x] Responsive Flask/Jinja dashboard and interactive upload controls
+- [x] Scenario-level rates, Wilson intervals, run traces and paired seed/scenario comparisons
+- [x] Database migrations and PostgreSQL/Redis infrastructure integration tests in CI
+- [x] Optional single-operator authentication, session CSRF, API token access and rate limits
+- [x] OpenAPI 3.1 contract and browsable API documentation
+- [x] Favicon, package version display and packaged static assets
+- [x] Deterministic **synthetic** demo fixtures and non-destructive seed CLI
+- [x] Portfolio walkthrough and honest deployment gate checklist
 
-## Managed databases and background workers (this branch)
-- [x] Flask-Migrate with reviewed initial Alembic revision
-- [x] Local SQLite quick-start compatibility
-- [x] PostgreSQL and Redis services in CI
-- [x] Redis/RQ worker integration test
-- [x] Docker Compose integration stack with persistent database and shared upload storage
-- [ ] Check CI results; run Docker Compose on Windows and verify real async imports
-- [ ] Production-safe concurrent upserts, retries, structured logs, data retention
+## Next: production robustness
 
-## Security and portfolio release
-- [x] Opt-in single-operator login and hashed-password verification
-- [x] Session CSRF protections, optional bearer API access and 5/min login throttling
-- [x] Rate-limited uploads, defensive response headers and accessible sign-in view
-- [x] Readability polish for smaller dashboard labels
-- [ ] Multi-user authorization, production secrets management and shared Redis rate-limit state
-- [x] Version-controlled OpenAPI 3.1 contract, local HTML reference and packaged API docs
-- [x] JSON HTTP errors for API routes (404 and oversized payloads)
-- [x] Favicon and browser route polish
-- [ ] Request timeouts, normalized structured errors and stronger data validation
-- [ ] Statistically justified uncertainty for paired score differences and reproducibility checks
-- [ ] Deployment review, CI/CD, screenshots and interview documentation
+- [ ] Concurrency-safe agent/version registration and upload idempotency
+- [ ] Redis/RQ retry/backoff and reliable worker recovery under failure
+- [ ] Structured error handling, logs and query performance measurements
+- [ ] Stronger nested JSON validation, retention controls and documented export
+- [ ] Meaningful paired-comparison statistical uncertainty, evaluated on larger controlled samples
+
+## Before any public launch
+
+- [ ] Choose deployment topology, HTTPS and secret storage
+- [ ] Require auth in deployed environments and properly isolate user data
+- [ ] Shared rate-limit backing store and safe reverse-proxy configuration
+- [ ] Durable upload storage, database backups and migration/restore testing
+- [ ] Smoke-test actual deployment end-to-end, not only in GitHub Actions
+- [ ] Review accessibility and representative application performance
+- [ ] Add approved, clearly labeled demo screenshots and interview walkthrough
+
+See [deployment readiness](deployment-readiness.md). The Docker Compose stack is still **local-only** and does not require installation on the developer's Windows machine for application work.

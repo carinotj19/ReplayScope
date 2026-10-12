@@ -1,133 +1,126 @@
 # ReplayScope
 
-**ReplayScope** is a Python/Flask dashboard for benchmarking AI-agent behavior: experiments, agent versions, JSON/CSV imports, descriptive outcome rates, and per-run trace events. It is simulation-independent and ships with illustrative sample data.
+**Observe, benchmark and compare AI-agent runs.** ReplayScope is a simulator-independent Python/Flask portfolio project that ingests benchmark datasets, stores normalized runs, and makes performance comparisons inspectable through a web dashboard and REST API.
 
-**Status:** portfolio prototype. Includes a responsive Jinja dashboard, REST API, SQLAlchemy persistence, Alembic schema migrations for managed installations, an optional Redis/RQ worker, automated tests and CI. The optional single-operator protected mode adds login, CSRF protection, API token access, rate limits and browser security headers. This is not yet a production multi-user application.
+> **Project status:** A functioning **local portfolio prototype**, not a public SaaS product. Data supplied by the demo generator is explicitly **synthetic**. Public deployment needs the additional safeguards in [the readiness checklist](docs/deployment-readiness.md).
 
-## Run the existing Windows demo (SQLite, no Docker required)
+## What you can do
 
-    cd E:\Repo\ReplayScope
-    .\.venv\Scripts\Activate.ps1
-    py -m pip install -e ".[dev]"
-    py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
-    py -m flask --app replayscope:create_app run --debug
+- **Organize experiments** and track named agent versions.
+- **Import JSON or CSV** datasets with validation and status tracking.
+- **Compare outcomes** by agent version and scenario, with separate win and task-success rates and descriptive Wilson intervals.
+- **Inspect run traces**, metadata, durations and reported failure reasons.
+- **Pair runs fairly** using identical scenario/seed values; exclude unmatched or duplicated keys rather than manufacturing comparisons.
+- **Explore a documented API** at `/docs` and its [OpenAPI 3.1 contract](src/replayscope/openapi.json).
+- **Run two reproducible synthetic demos** using a single CLI command.
 
-Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
+**No live AI model, simulation engine, external API or Docker installation is required for the local demo.**
 
-The interactive **API reference** is at http://127.0.0.1:5000/docs and the downloadable OpenAPI 3.1 specification is at http://127.0.0.1:5000/api/v1/openapi.json . Both are linked from the dashboard. Errors from /api/v1 now return JSON (including 404 and oversized requests).
+## Five-minute demo on Windows PowerShell
 
-From the browser: create an experiment, upload examples/benchmark.json or
-examples/benchmark.csv, filter by scenario, inspect runs, and select **Paired comparison** on an experiment.
-JSON events provide simple per-run trace inspection.
+Requires Python 3.11+ and Git. From your project folder:
 
-## Enable protected single-operator mode (optional)
+```powershell
+cd E:\Repo\ReplayScope
+py -3 -m venv .venv
+.\.venv\Scripts\Activate.ps1
+py -m pip install -e ".[dev]"
 
-The normal localhost demo requires **no configuration** and keeps using your
-existing SQLite data. For an opt-in protected demo in Windows PowerShell:
+# Preview the synthetic data. No data is written by this command.
+py -m flask --app replayscope:create_app seed-demo --dry-run
 
-    $env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
-    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
-    $env:REPLAYSCOPE_AUTH_ENABLED = "1"
-    py -m flask --app replayscope:create_app run --debug
+# Add two labeled synthetic experiments; safe to rerun.
+py -m flask --app replayscope:create_app seed-demo
 
-Open http://127.0.0.1:5000/ — the dashboard now redirects to a sign-in page.
-The password is NOT stored in the repository or in SQLite. Configuration above
-exists only for the current PowerShell session. Keep the same
-REPLAYSCOPE_SECRET_KEY across restarts to preserve login sessions. Restarting
-with a different key will sign existing sessions out. Disable protected mode
-again with:
+# Start the dashboard.
+py -m flask --app replayscope:create_app run --debug
+```
 
-    Remove-Item Env:\REPLAYSCOPE_AUTH_ENABLED
-    Remove-Item Env:\REPLAYSCOPE_ADMIN_PASSWORD_HASH
-    Remove-Item Env:\REPLAYSCOPE_SECRET_KEY
+Open **http://127.0.0.1:5000/**. Your existing local SQLite database is preserved. The sample experiments have `SYNTHETIC DEMO` in their names and will appear next to any workspaces you already created.
 
-With protected mode enabled, cookie-session API writes require the page's
-CSRF token in the X-CSRF-Token header; the dashboard adds this automatically.
-For programmatic clients, set REPLAYSCOPE_API_TOKEN to a long random value
-before startup and send Authorization: Bearer <token>. Bearer credentials
-authorize API routes only, not the browser dashboard. See
-[the security guide](docs/security.md) for important limitations.
+If the virtual environment already exists, skip its creation and just activate it. If Windows does not recognize `py` with an active environment, use `.\.venv\Scripts\python.exe -m ...` instead to target the virtual-environment interpreter explicitly.
 
-## Full integration stack (requires Docker Desktop and Compose)
+### Guided walkthrough
 
-From the repository root:
+1. Open **SYNTHETIC DEMO — Navigation Trials**. Explore 96 synthetic navigation task runs over three difficulties, two versions and identical seeds.
+2. Filter the version comparison by `maze-hard` and inspect a run's typed trace events and reported failure reason.
+3. Open **Paired comparison**, select Navigator `baseline` and `candidate`, and examine paired score deltas, matching coverage and excluded-run counts.
+4. Open **SYNTHETIC DEMO — Arena Trials** for 48 synthetic competitive outcomes, which use *game win rate* instead of task-success rate.
+5. Open **API reference** in the sidebar to inspect parameters, response codes and the underlying OpenAPI JSON.
 
-    docker compose up --build
+The generator uses deterministic arithmetic, **not** a learned policy or an experimental simulation. Its results are only meant to exercise the product consistently. See [the demo walkthrough](docs/portfolio-demo.md) for exact counts and explanations.
 
-Open http://127.0.0.1:8000/ . Compose starts PostgreSQL, Redis, the Flask/Gunicorn
-API, and an RQ worker. The API applies Alembic migrations to the initially empty
-PostgreSQL database before the worker starts. Uploaded files are stored in a shared
-named Docker volume. Docker data is separate from the earlier local SQLite demo.
+## Architecture
 
-To stop, press Ctrl+C or run:
+```text
+           Browser: Flask/Jinja templates + vanilla JS
+                               |
+  JSON/CSV uploads --- Flask REST API /api/v1
+                               |
+                  Validation + SHA-256 dedupe
+                               |
+                         Upload record
+                               |
+             Inline processor or Redis/RQ worker
+                               |
+                SQLAlchemy benchmark runs
+                               |
+          Scenario analytics + exact seed matching
+                               |
+              Dashboard + documented API
+```
 
-    docker compose down
+| Layer | Technology / responsibility |
+| --- | --- |
+| Web UI | Flask + Jinja2 templates, responsive CSS, small vanilla-JS enhancements |
+| API | Flask application factory, Blueprints, versioned JSON routes, OpenAPI 3.1 |
+| Data validation | Pure-Python, framework-independent JSON/CSV parser |
+| Persistence | SQLAlchemy models; local SQLite or PostgreSQL with Alembic migrations |
+| Background processing | Redis/RQ worker mode; synchronous mode for simple local testing |
+| Security | Optional single-operator login, CSRF, API bearer tokens, rate limits and defensive headers |
+| Quality | Pytest, GitHub Actions unit/infrastructure jobs, wheel packaging checks |
 
-The volumes persist. Use docker compose down -v only if you intentionally want to
-DELETE the Compose database and uploads.
+**What the numbers mean:** game win rate = wins / (wins + losses + draws); task success rate = successes / (successes + failures). Seed-matched score differences use candidate minus baseline and exclude ambiguous keys. Wilson intervals describe individual rates; **none of these figures alone proves a causal improvement or statistical significance**. Scores from incompatible scenarios should not be averaged for decisions.
 
-The Compose password is intentionally weak and hard-coded for local development:
-DO NOT expose the containers publicly or reuse this setup in production.
+## Test the application
 
-## Managed DB migrations
+```powershell
+py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
+```
 
-When DATABASE_URL is provided, ReplayScope defaults to AUTO_CREATE_DB=0 and does
-not silently create tables. For an EMPTY managed PostgreSQL database:
+The two PostgreSQL/Redis integration tests are intentionally skipped if those services aren't configured on your computer. GitHub Actions runs them using service containers.
 
-    python -m flask --app replayscope:create_app db upgrade
+For API work, see `http://127.0.0.1:5000/docs` and the route `/api/v1/openapi.json`. A small hand-editable input example is in [examples/benchmark.json](examples/benchmark.json), with a [CSV equivalent](examples/benchmark.csv).
 
-The SQLite quick-start still creates its schema automatically if DATABASE_URL is
-unset. Avoid applying the initial schema migration on top of an already-populated
-SQLite database, or you will encounter existing-table conflicts.
+## Authentication and local operation
 
-## API
+The localhost quick start intentionally starts in **LOCAL DEMO** mode with authentication disabled. This is suitable only for a trusted local development environment.
 
-The version-controlled OpenAPI specification documents parameters, response schemas, codes, and authorization conventions. The human-readable Flask route at /docs renders those operation descriptions without an external hosted service. When protected mode is enabled, the reference is accessible after sign-in (or the JSON contract via bearer token).
+For an opt-in protected session, stop Flask and run the following commands in the same PowerShell window:
 
+```powershell
+$env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
+$env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
+$env:REPLAYSCOPE_AUTH_ENABLED = "1"
+py -m flask --app replayscope:create_app run --debug
+```
 
-| Method | Path | Description |
-| --- | --- | --- |
-| GET | /health | Service health |
-| GET | /api/v1/openapi.json | Machine-readable OpenAPI 3.1 contract |
-| GET, POST | /api/v1/experiments | Experiments |
-| GET | /api/v1/agent-versions | Versions created during ingestion |
-| POST | /api/v1/uploads | Multipart file + experiment_id |
-| GET | /api/v1/uploads/{id} | Async processing state |
-| GET | /api/v1/experiments/{id}/runs | Paginated runs with filters |
-| GET | /api/v1/experiments/{id}/summary | Agent/version and scenario summaries |
-| GET | /api/v1/experiments/{id}/compare | Matched seed/scenario score differences (`baseline_id`, `candidate_id`, optional `scenario`) |
+These environment variables are session-scoped, and the administrator password is not stored in the repository. See [the security guide](docs/security.md) for CSRF, API-token usage, and deployment limitations.
 
-Input records require agent, version, scenario, outcome (win/loss/draw or
-success/failure), and finite score. Optional fields: seed, duration_ms,
-failure_reason, metadata and events (typed JSON event objects).
+## Managed database and queue
 
-Limits: 8 MiB/file, 2,000 runs/file, 500 events/run; duplicate file bytes
-within an experiment are deduplicated. Game win and task success rates are
-calculated separately, with Wilson 95% intervals. Do not infer significance
-from small or unmatched sample runs.
+For a **new empty** database with `DATABASE_URL`, use `py -m flask --app replayscope:create_app db upgrade` before starting the server. Do not apply the initial Alembic schema-creation migration directly over a pre-existing SQLite database that already has tables.
 
-## Paired score comparison
+An optional `compose.yaml` starts PostgreSQL, Redis, Flask/Gunicorn and a shared-file RQ worker in a localhost-only development stack. Docker is **not required** for the local demo. Named volumes persist unless explicitly deleted.
 
-Open an experiment's **Paired comparison** screen. Choose a baseline and
-candidate version of the **same agent**. ReplayScope matches records only when
-they are in the same experiment, with identical `scenario` and nonempty `seed`
-values, and exactly one run per side for each key. Repeated keys are excluded,
-not arbitrarily combined. Missing-seed and unmatched-key counts are displayed.
+Do not expose the existing Docker example on the public Internet: its credentials are for local testing only.
 
-For each pair, **score delta = candidate score minus baseline score**. The UI
-shows mean and median deltas, counts of higher/equal/lower candidate scores,
-per-scenario breakdowns and a sample of paired rows. The calculation assumes
-higher score is desirable; it does not infer causal improvement or statistical
-significance. Mixed scenarios can have incompatible score scales; filter to a
-single scenario when interpreting score differences.
+## Engineering documentation
 
-Example direct API request (experiment ID 1, agent-version IDs 1 and 2):
+- [Portfolio demo walkthrough](docs/portfolio-demo.md) — a repeatable feature tour suitable for interviews.
+- [Architecture and tradeoffs](docs/architecture.md) — domain model, ingestion boundaries, rate interpretation and current limitations.
+- [Deployment readiness](docs/deployment-readiness.md) — the checks still needed before publishing a live URL.
+- [Security configuration](docs/security.md) — opt-in single-admin behavior and known gaps.
+- [Development roadmap](docs/roadmap.md) — completed and planned work.
 
-    Invoke-RestMethod "http://127.0.0.1:5000/api/v1/experiments/1/compare?baseline_id=1&candidate_id=2"
-
-Existing sample `examples/benchmark.json` includes matched Pathfinder seeds,
-so no new dataset is needed to explore the feature.
-
-See docs/architecture.md and docs/roadmap.md.
-
-**Warning:** Authentication is off by default for the convenient localhost demo. Protected mode is single-operator only. Do not expose this version to the public Internet; HTTPS, multi-user authorization, secrets management, central rate-limit storage, auditing, and further deployment safeguards require additional work.
+ReplayScope remains under active development. Avoid describing it as production-ready or claiming the synthetic benchmark results reflect real AI-agent performance.
