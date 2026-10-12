@@ -2,11 +2,13 @@
 import os
 from pathlib import Path
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 from flask_migrate import Migrate
 
 from .models import db
 from .security import configure_security
+from .api_docs import docs_ui
 
 migrate = Migrate(compare_type=True)
 
@@ -49,10 +51,22 @@ def create_app(test_config=None):
     from .web import web
     app.register_blueprint(api, url_prefix="/api/v1")
     app.register_blueprint(web)
+    app.register_blueprint(docs_ui)
+
+    @app.get("/favicon.ico")
+    def favicon():
+        from flask import redirect, url_for
+        return redirect(url_for("static", filename="favicon.svg"), code=302)
 
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "service": "replayscope"})
+
+    @app.errorhandler(HTTPException)
+    def http_error(exc):
+        if request.path.startswith("/api/v1/"):
+            return jsonify({"error": exc.description}), exc.code
+        return exc
 
     if app.config["AUTO_CREATE_DB"]:
         with app.app_context():
