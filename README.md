@@ -1,199 +1,117 @@
 # ReplayScope
 
-**v1.0.0 · Local portfolio release** · [Release notes and acceptance checklist](docs/release-v1.md) · [Deployment limitations](docs/deployment-readiness.md)
+**A better way to look at AI agent benchmark runs.**
 
-**Observe, benchmark and compare AI-agent runs.** ReplayScope is a simulator-independent Python/Flask portfolio project that ingests benchmark datasets, stores normalized runs, and makes performance comparisons inspectable through a web dashboard and REST API.
+Benchmarking an agent is one thing. Figuring out *what actually changed* between versions is another.
 
-> **Project status:** A functioning **local portfolio MVP**, not a public SaaS product. Data supplied by the demo generator is explicitly **synthetic**. Public deployment needs the additional safeguards in [the readiness checklist](docs/deployment-readiness.md).
+I built ReplayScope to make that second part easier. Drop in JSON or CSV results, browse individual runs, look at performance across scenarios, and compare two versions without digging through raw logs.
+
+It's a Python/Flask project with a simple web dashboard and REST API. You can run the whole thing locally; no AI model, simulator, or Docker setup is needed to try it.
 
 ## What you can do
 
-- **Organize experiments** and track named agent versions.
-- **Import JSON or CSV** datasets with validation and status tracking.
-- **Compare outcomes** by agent version and scenario, with separate win and task-success rates and descriptive Wilson intervals.
-- **Inspect run traces**, metadata, durations and reported failure reasons.
-- **Pair runs fairly** using identical scenario/seed values; exclude unmatched or duplicated keys rather than manufacturing comparisons.
-- **Explore a documented API** at `/docs` and its [OpenAPI 3.1 contract](src/replayscope/openapi.json).
-- **Run two reproducible synthetic demos** using a single CLI command.
+- **Keep experiments organized.** Group benchmark runs by experiment, agent, and version.
+- **Explore the results.** See scores, win and success rates, run durations, failure reasons, and event traces.
+- **Compare versions.** Match runs using the same scenario and seed, then inspect score differences side by side.
+- **Bring your own data.** Import JSON or CSV files, with validation, upload status tracking, and duplicate detection.
+- **Use the API.** Every core workflow is available through a Flask REST API, with an [OpenAPI reference](src/replayscope/openapi.json).
 
-**No live AI model, simulation engine, external API or Docker installation is required for the local demo.**
+The comparison view deliberately excludes missing or ambiguous seed matches. The numbers are descriptive, not proof that one agent is statistically better than another.
 
-## Five-minute demo on Windows PowerShell
+## Getting started
 
-Requires Python 3.11+ and Git. From your project folder:
+You'll need **Python 3.11+** and Git. These commands are for Windows PowerShell:
 
 ```powershell
-cd E:\Repo\ReplayScope
+git clone https://github.com/carinotj19/ReplayScope.git
+cd ReplayScope
+
 py -3 -m venv .venv
 .\.venv\Scripts\Activate.ps1
 py -m pip install -e ".[dev]"
 
-# Preview the synthetic data. No data is written by this command.
-py -m flask --app replayscope:create_app seed-demo --dry-run
-
-# Add two labeled synthetic experiments; safe to rerun.
+# Add sample data so there's something to explore.
 py -m flask --app replayscope:create_app seed-demo
 
-# Start the dashboard.
+# Start the app.
 py -m flask --app replayscope:create_app run --debug
 ```
 
-Open **http://127.0.0.1:5000/**. Your existing local SQLite database is preserved. The sample experiments have `SYNTHETIC DEMO` in their names and will appear next to any workspaces you already created.
+Then open **http://127.0.0.1:5000**.
 
-If the virtual environment already exists, skip its creation and just activate it. If Windows does not recognize `py` with an active environment, use `.\.venv\Scripts\python.exe -m ...` instead to target the virtual-environment interpreter explicitly.
+If you're already working in this repository, just activate your existing `.venv` instead of creating a new one. ReplayScope uses SQLite by default and keeps its data between runs.
 
-### Guided walkthrough
+### Try the sample experiments
 
-1. Open **SYNTHETIC DEMO — Navigation Trials**. Explore 96 synthetic navigation task runs over three difficulties, two versions and identical seeds.
-2. Filter the version comparison by `maze-hard` and inspect a run's typed trace events and reported failure reason.
-3. Open **Paired comparison**, select Navigator `baseline` and `candidate`, and examine paired score deltas, matching coverage and excluded-run counts.
-4. Open **SYNTHETIC DEMO — Arena Trials** for 48 synthetic competitive outcomes, which use *game win rate* instead of task-success rate.
-5. Open **API reference** in the sidebar to inspect parameters, response codes and the underlying OpenAPI JSON.
+The `seed-demo` command creates two clearly labeled **synthetic** datasets:
 
-The generator uses deterministic arithmetic, **not** a learned policy or an experimental simulation. Its results are only meant to exercise the product consistently. See [the demo walkthrough](docs/portfolio-demo.md) for exact counts and explanations.
+| Experiment | What's included |
+| --- | --- |
+| Navigation Trials | 96 runs across three maze scenarios, with baseline and candidate versions |
+| Arena Trials | 48 runs across two arenas, using win/loss/draw outcomes |
 
-## Architecture
+Start with Navigation Trials, choose the two versions in **Paired comparison**, and look at the 48 matched scenario/seed pairs. You can also filter by scenario or open individual runs to inspect their event traces.
+
+These datasets are generated examples, not results from a trained agent. They're just there to make the app easy to explore. Running `seed-demo` again won't duplicate them.
+
+There's a more detailed [demo walkthrough](docs/portfolio-demo.md) if you'd like to follow along.
+
+## How it's built
+
+I kept the UI lightweight and put most of the work in the Python backend.
+
+| Part | Stack |
+| --- | --- |
+| Web app | Flask, Jinja2, vanilla JavaScript, CSS |
+| Database | SQLAlchemy + SQLite locally, PostgreSQL as an option |
+| Background jobs | Redis and RQ (optional for local use) |
+| Migrations | Alembic / Flask-Migrate |
+| Tests | Pytest + GitHub Actions |
+| API | Flask REST endpoints + OpenAPI 3.1 |
+
+A dataset goes through validation and SHA-256 duplicate checking, then gets stored as normalized benchmark runs. From there, the dashboard and API build the summaries and version comparisons.
+
+For larger setups, ReplayScope also supports queued processing, retry handling, worker heartbeats, and stale-job recovery. The local demo simply processes uploads inline.
+
+The implementation details are in the [architecture notes](docs/architecture.md) and [reliability guide](docs/reliability.md).
+
+## Working with the API
+
+Start the app and visit **[/docs](http://127.0.0.1:5000/docs)** for the browsable API reference, or **[/api/v1/openapi.json](http://127.0.0.1:5000/api/v1/openapi.json)** for the OpenAPI spec.
+
+A couple of useful routes:
 
 ```text
-           Browser: Flask/Jinja templates + vanilla JS
-                               |
-  JSON/CSV uploads --- Flask REST API /api/v1
-                               |
-                  Validation + SHA-256 dedupe
-                               |
-                         Upload record
-                               |
-             Inline processor or Redis/RQ worker
-                               |
-                SQLAlchemy benchmark runs
-                               |
-          Scenario analytics + exact seed matching
-                               |
-              Dashboard + documented API
+GET  /api/v1/experiments
+POST /api/v1/experiments
+POST /api/v1/uploads
+GET  /api/v1/experiments/{id}/runs
+GET  /api/v1/experiments/{id}/summary
+GET  /api/v1/experiments/{id}/compare
 ```
 
-| Layer | Technology / responsibility |
-| --- | --- |
-| Web UI | Flask + Jinja2 templates, responsive CSS, small vanilla-JS enhancements |
-| API | Flask application factory, Blueprints, versioned JSON routes, OpenAPI 3.1 |
-| Data validation | Pure-Python, framework-independent JSON/CSV parser |
-| Persistence | SQLAlchemy models; local SQLite or PostgreSQL with Alembic migrations |
-| Background processing | Redis/RQ worker mode; synchronous mode for simple local testing |
-| Security | Optional single-operator login, CSRF, API bearer tokens, rate limits and defensive headers |
-| Quality | Pytest, GitHub Actions unit/infrastructure jobs, wheel packaging checks |
+Want to try your own dataset? Start with [benchmark.json](examples/benchmark.json) or [benchmark.csv](examples/benchmark.csv).
 
-**What the numbers mean:** game win rate = wins / (wins + losses + draws); task success rate = successes / (successes + failures). Seed-matched score differences use candidate minus baseline and exclude ambiguous keys. Wilson intervals describe individual rates; **none of these figures alone proves a causal improvement or statistical significance**. Scores from incompatible scenarios should not be averaged for decisions.
-
-## Test the application
-
-From the repository root, run the automated release audit alongside the test suite:
+## Running the tests
 
 ```powershell
 py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
 py scripts/release_audit.py
 ```
 
-The two PostgreSQL/Redis integration tests are intentionally skipped if those services aren't configured on your computer. GitHub Actions runs them using service containers.
+PostgreSQL and Redis integration tests run in GitHub Actions. Without those services configured locally, the corresponding tests are skipped.
 
-For API work, see `http://127.0.0.1:5000/docs` and the route `/api/v1/openapi.json`. A small hand-editable input example is in [examples/benchmark.json](examples/benchmark.json), with a [CSV equivalent](examples/benchmark.csv).
+## A note on the project
 
-## Worker recovery and safe retries (v0.7.0)
+**ReplayScope v1.0.0 is a finished local portfolio project**, not a hosted product. It includes an optional single-admin login, but the default local demo runs without authentication. Don't expose that demo server or the development Docker Compose configuration to the public internet.
 
-An upload is claimed by a conditional database UPDATE: if a second worker
-receives the same job, it sees `processing` or `ready` rather than importing
-the rows again. Agent versions are registered using database conflict-safe
-inserts on SQLite and PostgreSQL.
+I wanted the project to focus on the parts that are interesting to build and reason about: data validation, experiment design, comparing runs fairly, database transactions, and what happens when a background worker fails.
 
-Redis/RQ jobs automatically retry **unexpected worker exceptions** at 10,
-60 and 180-second intervals, up to three retries. Invalid datasets are marked
-`failed` and do not retry automatically. A failed upload can be recovered
-without deleting data:
+If you're curious about the tradeoffs or limitations, I've written them down instead of trying to hide them:
 
-```powershell
-py -m flask --app replayscope:create_app recover-upload UPLOAD_ID
-```
+- [Release notes](docs/release-v1.md)
+- [Security notes](docs/security.md)
+- [Deployment checklist](docs/deployment-readiness.md)
 
-For **legacy or deliberately forced** recovery of a `processing` upload,
-first confirm the original worker has stopped, then explicitly recover it:
-
-```powershell
-py -m flask --app replayscope:create_app recover-upload UPLOAD_ID --force-stuck
-```
-
-The second command deliberately requires an override and should not be used
-while an older, unfenced worker might still be running. Both commands perform
-immediate recovery in the invoking Python process; Docker/Redis isn't required.
-The existing dashboard does not expose these administrative controls.
-
-Input validation now rejects unusually deep metadata/events, oversized nested
-strings, nonfinite nested numbers and duplicate CSV headers before storing
-uploads. See [reliability notes](docs/reliability.md) for precise bounds and
-remaining failure modes.
-
-
-## Fenced worker leases and stale-job watchdog (v0.8.0)
-
-ReplayScope now gives every in-progress upload a time-limited **lease token**.
-The worker renews its lease with a heartbeat while processing; the final
-database transaction checks the token under a row lock before writing runs.
-If another worker has safely reclaimed an expired lease, the old worker
-**cannot commit or overwrite the recovered results**.
-
-A watchdog can detect and recover abandoned uploads without Docker or Redis:
-
-```powershell
-# One safe sweep; returns immediately if nothing has expired:
-py -m flask --app replayscope:create_app sweep-stale
-
-# Optional ongoing watchdog (separate PowerShell window, Ctrl+C to stop):
-py -m flask --app replayscope:create_app sweep-stale --watch --interval 30
-```
-
-The watchdog only reclaims uploads with an **expired nonempty lease**. It skips
-healthy leases and legacy `processing` records without a lease (those still
-require explicit manual inspection). Lease duration defaults to 120 seconds,
-with a heartbeat every 20 seconds. A reclaimed upload is processed inline by
-the watchdog to avoid losing a queue message.
-
-The existing local SQLite quick-start adds the new `upload_leases` table
-automatically without deleting experiments or modifying benchmark runs.
-**Managed PostgreSQL** installations require `flask db upgrade` to apply the
-new `0002_upload_leases` migration. Do not run the migration against an older
-SQLite demo that used automatic table creation.
-
-This is a safer recovery model, not proof of exactly-once execution or a
-production availability guarantee. See [reliability notes](docs/reliability.md)
-for limitations and PostgreSQL stress-test coverage.
-
-## Authentication and local operation
-
-The localhost quick start intentionally starts in **LOCAL DEMO** mode with authentication disabled. This is suitable only for a trusted local development environment.
-
-For an opt-in protected session, stop Flask and run the following commands in the same PowerShell window:
-
-```powershell
-$env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
-$env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
-$env:REPLAYSCOPE_AUTH_ENABLED = "1"
-py -m flask --app replayscope:create_app run --debug
-```
-
-These environment variables are session-scoped, and the administrator password is not stored in the repository. See [the security guide](docs/security.md) for CSRF, API-token usage, and deployment limitations.
-
-## Managed database and queue
-
-For a **new empty** database with `DATABASE_URL`, use `py -m flask --app replayscope:create_app db upgrade` before starting the server. Do not apply the initial Alembic schema-creation migration directly over a pre-existing SQLite database that already has tables.
-
-An optional `compose.yaml` starts PostgreSQL, Redis, Flask/Gunicorn and a shared-file RQ worker in a localhost-only development stack. Docker is **not required** for the local demo. Named volumes persist unless explicitly deleted.
-
-Do not expose the existing Docker example on the public Internet: its credentials are for local testing only.
-
-## Engineering documentation
-
-- [Portfolio demo walkthrough](docs/portfolio-demo.md) — a repeatable feature tour suitable for interviews.
-- [Architecture and tradeoffs](docs/architecture.md) — domain model, ingestion boundaries, rate interpretation and current limitations.
-- [Deployment readiness](docs/deployment-readiness.md) — the checks still needed before publishing a live URL.
-- [Security configuration](docs/security.md) — opt-in single-admin behavior and known gaps.
-- [Development roadmap](docs/roadmap.md) — completed and planned work.
-
-**Release scope:** v1.0.0 is a complete, demonstrable **local portfolio MVP**. Public deployment and multi-user security remain outside this release. Avoid describing synthetic results as real AI-agent performance.
+---
+*Built with Python and Flask. Benchmark examples are synthetic.*
