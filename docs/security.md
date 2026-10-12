@@ -26,10 +26,10 @@ Environment variables:
 
 PowerShell single-session protected test:
 
-    $env:REPLAYSCOPE_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(48))"
-    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
+    $env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
+    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
     $env:REPLAYSCOPE_AUTH_ENABLED = "1"
-    python -m flask --app replayscope:create_app run --debug
+    py -m flask --app replayscope:create_app run --debug
 
 Do not place passwords, bearer tokens or session secrets in Git or screenshots.
 

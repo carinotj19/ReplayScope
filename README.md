@@ -8,9 +8,9 @@
 
     cd E:\Repo\ReplayScope
     .\.venv\Scripts\Activate.ps1
-    python -m pip install -e ".[dev]"
-    python -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
-    python -m flask --app replayscope:create_app run --debug
+    py -m pip install -e ".[dev]"
+    py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
+    py -m flask --app replayscope:create_app run --debug
 
 Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
 
@@ -25,10 +25,10 @@ JSON events provide simple per-run trace inspection.
 The normal localhost demo requires **no configuration** and keeps using your
 existing SQLite data. For an opt-in protected demo in Windows PowerShell:
 
-    $env:REPLAYSCOPE_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(48))"
-    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
+    $env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
+    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
     $env:REPLAYSCOPE_AUTH_ENABLED = "1"
-    python -m flask --app replayscope:create_app run --debug
+    py -m flask --app replayscope:create_app run --debug
 
 Open http://127.0.0.1:5000/ — the dashboard now redirects to a sign-in page.
 The password is NOT stored in the repository or in SQLite. Configuration above
