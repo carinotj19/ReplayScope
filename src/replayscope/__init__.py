@@ -1,12 +1,15 @@
 """ReplayScope Flask application factory."""
 import os
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+from werkzeug.exceptions import HTTPException
 from flask_migrate import Migrate
 
 from .models import db
 from .security import configure_security
+from .api_docs import docs_ui
 
 migrate = Migrate(compare_type=True)
 
@@ -18,9 +21,14 @@ def create_app(test_config=None):
     database_url = external_db_url or (
         "sqlite:///" + str(Path(app.instance_path) / "replayscope.sqlite3")
     )
+    try:
+        app_version = package_version("replayscope")
+    except PackageNotFoundError:
+        app_version = "dev"
     if database_url.startswith("postgres://"):
         database_url = "postgresql://" + database_url[len("postgres://"):]
     app.config.from_mapping(
+        APP_VERSION=app_version,
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         MAX_CONTENT_LENGTH=8 * 1024 * 1024,
@@ -49,10 +57,22 @@ def create_app(test_config=None):
     from .web import web
     app.register_blueprint(api, url_prefix="/api/v1")
     app.register_blueprint(web)
+    app.register_blueprint(docs_ui)
+
+    @app.get("/favicon.ico")
+    def favicon():
+        from flask import redirect, url_for
+        return redirect(url_for("static", filename="favicon.svg"), code=302)
 
     @app.get("/health")
     def health():
         return jsonify({"status": "ok", "service": "replayscope"})
+
+    @app.errorhandler(HTTPException)
+    def http_error(exc):
+        if request.path.startswith("/api/v1/"):
+            return jsonify({"error": exc.description}), exc.code
+        return exc
 
     if app.config["AUTO_CREATE_DB"]:
         with app.app_context():

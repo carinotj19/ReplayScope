@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}API reference{% endblock %}
+{% block crumb %}API reference{% endblock %}
+{% block content %}
+  <div class="eyebrow"><span class="eyebrow-dot"></span> DEVELOPER / REFERENCE</div>
+  <div class="heading-row">
+    <div>
+      <h1>REST API reference<span class="muted-period">.</span></h1>
+      <p class="page-subtitle">A versioned HTTP contract for ingesting and analyzing benchmark runs.</p>
+    </div>
+    <a class="button button-secondary" href="{{ url_for('docs_ui.openapi') }}">↗ OpenAPI 3.1 JSON</a>
+  </div>
+  <section class="panel panel-pad docs-intro">
+    <div class="panel-eyebrow">GETTING STARTED</div>
+    <h2>Endpoints and authentication</h2>
+    <p class="panel-description">All example data is illustrative. Responses are JSON and the API lives under <code>/api/v1</code> (except <code>/health</code>). File uploads use <code>multipart/form-data</code>. Calls return the HTTP status codes shown below.</p>
+    <p class="panel-description">{% if config.AUTH_ENABLED %}Protected mode is enabled. Cookie-authenticated writes require the CSRF token from your signed-in dashboard page; automation may instead use an explicitly configured bearer token.{% else %}This local demo has authentication disabled. Turn on protected mode before running outside a trusted local environment.{% endif %}</p>
+    <pre class="docs-command">py -m flask --app replayscope:create_app run --debug</pre>
+    <p class="fine-print">The complete API schema is available at <a class="quiet-link" href="{{ url_for('docs_ui.openapi') }}">/api/v1/openapi.json</a>. The source file is version-controlled and included in the wheel.</p>
+  </section>
+  <div class="docs-operations">
+  {% for item in sections %}
+    <section class="panel panel-pad docs-operation">
+      <div class="docs-operation-heading"><span class="docs-method {{ 'docs-get' if item.method == 'GET' else 'docs-post' }}">{{ item.method }}</span><code class="docs-path">{{ item.path }}</code></div>
+      <h2>{{ item.title }}</h2>
+      {% if item.description %}<p class="panel-description">{{ item.description }}</p>{% endif %}
+      {% if item.params %}
+      <div class="panel-eyebrow">PARAMETERS</div>
+      <div class="docs-params">
+        {% for param in item.params %}
+          <div><code>{{ param.name }}</code><span>{{ param['in'] }}</span><span>{{ "required" if param.required else "optional" }}</span><small>{{ param.description|default("", true) }}</small></div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      <div class="panel-eyebrow">RESPONSES</div>
+      <div class="docs-responses">{% for status, details in item.responses.items() %}<span><code>{{ status }}</code> {{ details.description }}</span>{% endfor %}</div>
+    </section>
+  {% endfor %}
+  </div>
+{% endblock %}

@@ -106,7 +106,7 @@ def configure_security(app):
         if not app.config["AUTH_ENABLED"]:
             return None
         if request.endpoint in (
-            "security.login_page", "security.login", "static", "health",
+            "security.login_page", "security.login", "static", "health", "favicon",
         ):
             return None
         header = request.headers.get("Authorization", "")

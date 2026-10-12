@@ -186,3 +186,26 @@ tbody tr:last-child td{border-bottom:none}
 .login-card .fine-print{padding:0;margin:16px 0 0}
 .login-card label{font-size:13px!important}
 .login-card .comparison-error{margin-top:18px}
+
+/* API documentation */
+.docs-intro{margin-bottom:20px}
+.docs-command{background:#080d17;border:1px solid var(--border);border-radius:8px;color:var(--accent);padding:15px 18px;overflow-x:auto;font-family:Consolas,monospace;font-size:12px}
+.docs-operations{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:17px}
+.docs-operation{min-width:0}
+.docs-operation-heading{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.docs-method{font-size:10px;border-radius:5px;padding:6px 8px;font-weight:800;letter-spacing:1px}
+.docs-get{background:#17332d;color:#8ce2c4}
+.docs-post{background:#223254;color:#b6caff}
+.docs-path{font-size:12px;overflow-wrap:anywhere;color:#d6e4f5}
+.docs-operation h2{font-size:17px;margin-top:18px}
+.docs-params{margin:12px 0 20px;display:grid;gap:10px}
+.docs-params>div{display:flex;gap:10px;flex-wrap:wrap;align-items:baseline;font-size:11px;color:var(--muted);border-bottom:1px solid var(--border);padding:8px 0}
+.docs-params small{flex-basis:100%;font-size:11px}
+.docs-params code{font-size:12px;color:var(--accent)}
+.docs-responses{display:flex;gap:12px;flex-wrap:wrap;margin-top:12px;font-size:11px;color:var(--muted)}
+.docs-responses code{color:var(--accent)}
+@media(max-width:880px){.docs-operations{grid-template-columns:1fr}}
+
+/* Keep technical reference metadata legible on typical laptop displays. */
+.docs-operation .panel-description,.docs-params>div,.docs-params small,.docs-responses,.docs-operation .docs-path{font-size:13px;line-height:1.6}
+.docs-method{font-size:11px}

@@ -8,11 +8,13 @@
 
     cd E:\Repo\ReplayScope
     .\.venv\Scripts\Activate.ps1
-    python -m pip install -e ".[dev]"
-    python -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
-    python -m flask --app replayscope:create_app run --debug
+    py -m pip install -e ".[dev]"
+    py -m pytest -q --basetemp="$env:LOCALAPPDATA\pytest-replayscope"
+    py -m flask --app replayscope:create_app run --debug
 
 Open http://127.0.0.1:5000/ . Existing local SQLite datasets and experiments are preserved.
+
+The interactive **API reference** is at http://127.0.0.1:5000/docs and the downloadable OpenAPI 3.1 specification is at http://127.0.0.1:5000/api/v1/openapi.json . Both are linked from the dashboard. Errors from /api/v1 now return JSON (including 404 and oversized requests).
 
 From the browser: create an experiment, upload examples/benchmark.json or
 examples/benchmark.csv, filter by scenario, inspect runs, and select **Paired comparison** on an experiment.
@@ -23,10 +25,10 @@ JSON events provide simple per-run trace inspection.
 The normal localhost demo requires **no configuration** and keeps using your
 existing SQLite data. For an opt-in protected demo in Windows PowerShell:
 
-    $env:REPLAYSCOPE_SECRET_KEY = python -c "import secrets; print(secrets.token_urlsafe(48))"
-    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = python -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
+    $env:REPLAYSCOPE_SECRET_KEY = py -c "import secrets; print(secrets.token_urlsafe(48))"
+    $env:REPLAYSCOPE_ADMIN_PASSWORD_HASH = py -c "import getpass; from werkzeug.security import generate_password_hash; print(generate_password_hash(getpass.getpass('New admin password: ')))"
     $env:REPLAYSCOPE_AUTH_ENABLED = "1"
-    python -m flask --app replayscope:create_app run --debug
+    py -m flask --app replayscope:create_app run --debug
 
 Open http://127.0.0.1:5000/ — the dashboard now redirects to a sign-in page.
 The password is NOT stored in the repository or in SQLite. Configuration above
@@ -80,9 +82,13 @@ SQLite database, or you will encounter existing-table conflicts.
 
 ## API
 
+The version-controlled OpenAPI specification documents parameters, response schemas, codes, and authorization conventions. The human-readable Flask route at /docs renders those operation descriptions without an external hosted service. When protected mode is enabled, the reference is accessible after sign-in (or the JSON contract via bearer token).
+
+
 | Method | Path | Description |
 | --- | --- | --- |
 | GET | /health | Service health |
+| GET | /api/v1/openapi.json | Machine-readable OpenAPI 3.1 contract |
 | GET, POST | /api/v1/experiments | Experiments |
 | GET | /api/v1/agent-versions | Versions created during ingestion |
 | POST | /api/v1/uploads | Multipart file + experiment_id |

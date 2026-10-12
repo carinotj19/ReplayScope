@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "replayscope"
-version = "0.4.0"
+version = "0.5.0"
 description = "Simulation-independent benchmark ingestion and analytics with Flask"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -25,7 +25,7 @@ prod = ["psycopg[binary]>=3.2,<4", "gunicorn>=22,<24"]
 where = ["src"]
 
 [tool.setuptools.package-data]
-replayscope = ["templates/*.html", "static/*.css", "static/*.js"]
+replayscope = ["templates/*.html", "static/*.css", "static/*.js", "static/*.svg", "openapi.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -32,6 +32,9 @@
 - [x] Rate-limited uploads, defensive response headers and accessible sign-in view
 - [x] Readability polish for smaller dashboard labels
 - [ ] Multi-user authorization, production secrets management and shared Redis rate-limit state
-- [ ] OpenAPI contract and stricter error handling
+- [x] Version-controlled OpenAPI 3.1 contract, local HTML reference and packaged API docs
+- [x] JSON HTTP errors for API routes (404 and oversized payloads)
+- [x] Favicon and browser route polish
+- [ ] Request timeouts, normalized structured errors and stronger data validation
 - [ ] Statistically justified uncertainty for paired score differences and reproducibility checks
 - [ ] Deployment review, CI/CD, screenshots and interview documentation

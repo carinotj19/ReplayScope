@@ -1,0 +1,1225 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "ReplayScope API",
+    "version": "0.5.0",
+    "description": "REST API for simulation-independent benchmark ingestion and agent-version analytics. Authentication is optional for the localhost demo: with protected mode enabled, authenticate using a signed session (and CSRF token for unsafe methods) or a configured bearer token for API routes. All sample data is illustrative. This specification documents HTTP behavior, not guarantees of production hosting or statistical significance."
+  },
+  "servers": [
+    {
+      "url": "/",
+      "description": "Current ReplayScope installation"
+    }
+  ],
+  "tags": [
+    {
+      "name": "System"
+    },
+    {
+      "name": "Experiments"
+    },
+    {
+      "name": "Uploads"
+    },
+    {
+      "name": "Analytics"
+    },
+    {
+      "name": "Documentation"
+    }
+  ],
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": [
+          "System"
+        ],
+        "summary": "Check service health",
+        "operationId": "getHealth",
+        "responses": {
+          "200": {
+            "description": "Service healthy",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "status",
+                    "service"
+                  ],
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "const": "ok"
+                    },
+                    "service": {
+                      "type": "string",
+                      "const": "replayscope"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/openapi.json": {
+      "get": {
+        "tags": [
+          "Documentation"
+        ],
+        "summary": "Download OpenAPI specification",
+        "operationId": "getOpenApi",
+        "responses": {
+          "200": {
+            "description": "OpenAPI 3.1 JSON document",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments": {
+      "get": {
+        "tags": [
+          "Experiments"
+        ],
+        "summary": "List experiments",
+        "operationId": "listExperiments",
+        "responses": {
+          "200": {
+            "description": "Experiment list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Experiment"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Experiments"
+        ],
+        "summary": "Create experiment",
+        "operationId": "createExperiment",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": true,
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 160
+                  },
+                  "description": {
+                    "type": "string",
+                    "maxLength": 4000
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Created experiment",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Experiment"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid CSRF token in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Duplicate experiment name",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/agent-versions": {
+      "get": {
+        "tags": [
+          "Experiments"
+        ],
+        "summary": "List registered agent versions",
+        "operationId": "listAgentVersions",
+        "description": "Agent versions are created automatically when benchmark datasets are processed.",
+        "responses": {
+          "200": {
+            "description": "Agent version list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AgentVersion"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads": {
+      "post": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Upload benchmark JSON or CSV",
+        "operationId": "uploadBenchmark",
+        "description": "Requires experiment_id and a .json or .csv file; validates rows before storing. Duplicate file bytes within an experiment return the existing upload. Inline mode may return ready immediately; RQ mode queues processing.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "experiment_id",
+                  "file"
+                ],
+                "properties": {
+                  "experiment_id": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary",
+                    "description": "UTF-8 JSON or CSV, up to 8 MiB; maximum 2000 runs."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Already uploaded",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "201": {
+            "description": "Created upload",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Invalid CSRF token in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "File exceeds configured limit",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Dataset schema invalid",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Upload rate limit reached in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Failed to queue processing",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/uploads/{upload_id}": {
+      "get": {
+        "tags": [
+          "Uploads"
+        ],
+        "summary": "Get upload processing status",
+        "operationId": "getUpload",
+        "parameters": [
+          {
+            "name": "upload_id",
+            "in": "path",
+            "required": true,
+            "description": "UUID upload identifier.",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Upload details",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Upload"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Upload not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/runs": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "List paginated benchmark runs",
+        "operationId": "listBenchmarkRuns",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric experiment identifier.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Page number.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "description": "Page size.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 25
+            }
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Only include this scenario.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          {
+            "name": "agent_version_id",
+            "in": "query",
+            "required": false,
+            "description": "Only include this version.",
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated runs",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RunPage"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/summary": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Summarize version performance",
+        "operationId": "getExperimentSummary",
+        "description": "Descriptive win rates (win/loss/draw) and task success rates (success/failure) use distinct denominators. Wilson 95% intervals assume independent observations; scores are not normalized across scenarios.",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric experiment identifier.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Optional scenario filter.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Per-version summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Summary"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/experiments/{experiment_id}/compare": {
+      "get": {
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Compare same-agent versions using matched seeds",
+        "operationId": "getPairedComparison",
+        "description": "Pairs exactly one run per version using the same scenario and nonempty seed. Excludes ambiguous or missing pairs, without causal or significance claims.",
+        "parameters": [
+          {
+            "name": "experiment_id",
+            "in": "path",
+            "required": true,
+            "description": "Numeric experiment identifier.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "baseline_id",
+            "in": "query",
+            "required": true,
+            "description": "Baseline agent-version ID.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "candidate_id",
+            "in": "query",
+            "required": true,
+            "description": "Candidate agent-version ID.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          {
+            "name": "scenario",
+            "in": "query",
+            "required": false,
+            "description": "Optional scenario filter.",
+            "schema": {
+              "type": "string",
+              "maxLength": 120
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Seed-matched comparison",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparison"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Validation error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthenticated in protected mode",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Experiment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Set REPLAYSCOPE_API_TOKEN; required for programmatic authentication only in protected mode."
+      },
+      "SessionCookie": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "session",
+        "description": "Signed browser session; unsafe HTTP requests also require X-CSRF-Token."
+      }
+    },
+    "schemas": {
+      "ApiError": {
+        "type": "object",
+        "required": [
+          "error"
+        ],
+        "properties": {
+          "error": {
+            "type": "string"
+          }
+        }
+      },
+      "Experiment": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "description"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          }
+        }
+      },
+      "AgentVersion": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "version"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "name": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        }
+      },
+      "Upload": {
+        "type": "object",
+        "required": [
+          "id",
+          "experiment_id",
+          "filename",
+          "format",
+          "status",
+          "run_count"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "experiment_id": {
+            "type": "integer"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "format": {
+            "type": "string",
+            "enum": [
+              "json",
+              "csv"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "queued",
+              "processing",
+              "ready",
+              "failed"
+            ]
+          },
+          "run_count": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "error": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "BenchmarkRun": {
+        "type": "object",
+        "required": [
+          "id",
+          "upload_id",
+          "agent_version_id",
+          "agent",
+          "version",
+          "scenario",
+          "outcome",
+          "score"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "upload_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "agent_version_id": {
+            "type": "integer"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "seed": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "outcome": {
+            "type": "string",
+            "enum": [
+              "win",
+              "loss",
+              "draw",
+              "success",
+              "failure"
+            ]
+          },
+          "score": {
+            "type": "number"
+          },
+          "duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "failure_reason": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "metadata": {
+            "type": "object"
+          },
+          "events": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          }
+        }
+      },
+      "RunPage": {
+        "type": "object",
+        "required": [
+          "total",
+          "page",
+          "per_page",
+          "items"
+        ],
+        "properties": {
+          "total": {
+            "type": "integer"
+          },
+          "page": {
+            "type": "integer"
+          },
+          "per_page": {
+            "type": "integer"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BenchmarkRun"
+            }
+          }
+        }
+      },
+      "OutcomeStats": {
+        "type": "object",
+        "required": [
+          "runs",
+          "outcomes",
+          "game_win_rate",
+          "task_success_rate",
+          "mean_score"
+        ],
+        "properties": {
+          "runs": {
+            "type": "integer"
+          },
+          "outcomes": {
+            "type": "object",
+            "properties": {
+              "win": {
+                "type": "integer"
+              },
+              "loss": {
+                "type": "integer"
+              },
+              "draw": {
+                "type": "integer"
+              },
+              "success": {
+                "type": "integer"
+              },
+              "failure": {
+                "type": "integer"
+              }
+            }
+          },
+          "game_win_rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "game_win_rate_95pct_wilson": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "task_success_rate": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "task_success_rate_95pct_wilson": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "number"
+            }
+          },
+          "mean_score": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "mean_duration_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "failure_reasons": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer"
+            }
+          }
+        }
+      },
+      "VersionSummary": {
+        "type": "object",
+        "required": [
+          "agent_version_id",
+          "agent",
+          "version",
+          "overall",
+          "by_scenario"
+        ],
+        "properties": {
+          "agent_version_id": {
+            "type": "integer"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "overall": {
+            "$ref": "#/components/schemas/OutcomeStats"
+          },
+          "by_scenario": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/OutcomeStats"
+            }
+          }
+        }
+      },
+      "Summary": {
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "versions",
+          "scope"
+        ],
+        "properties": {
+          "experiment_id": {
+            "type": "integer"
+          },
+          "versions": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VersionSummary"
+            }
+          },
+          "scope": {
+            "type": "object",
+            "properties": {
+              "scenario": {
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            }
+          }
+        }
+      },
+      "ComparisonStats": {
+        "type": "object",
+        "required": [
+          "pairs",
+          "mean_score_delta",
+          "median_score_delta",
+          "higher_score",
+          "equal_score",
+          "lower_score",
+          "timed_pairs"
+        ],
+        "properties": {
+          "pairs": {
+            "type": "integer"
+          },
+          "mean_score_delta": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "median_score_delta": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "higher_score": {
+            "type": "integer"
+          },
+          "equal_score": {
+            "type": "integer"
+          },
+          "lower_score": {
+            "type": "integer"
+          },
+          "mean_duration_delta_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          },
+          "timed_pairs": {
+            "type": "integer"
+          }
+        }
+      },
+      "Pair": {
+        "type": "object",
+        "required": [
+          "scenario",
+          "seed",
+          "baseline_score",
+          "candidate_score",
+          "score_delta"
+        ],
+        "properties": {
+          "scenario": {
+            "type": "string"
+          },
+          "seed": {
+            "type": "string"
+          },
+          "baseline_score": {
+            "type": "number"
+          },
+          "candidate_score": {
+            "type": "number"
+          },
+          "score_delta": {
+            "type": "number"
+          },
+          "baseline_outcome": {
+            "type": "string"
+          },
+          "candidate_outcome": {
+            "type": "string"
+          },
+          "duration_delta_ms": {
+            "type": [
+              "number",
+              "null"
+            ]
+          }
+        }
+      },
+      "Comparison": {
+        "type": "object",
+        "required": [
+          "experiment_id",
+          "agent",
+          "baseline_version",
+          "candidate_version",
+          "overall",
+          "excluded",
+          "by_scenario",
+          "pair_sample"
+        ],
+        "properties": {
+          "experiment_id": {
+            "type": "integer"
+          },
+          "agent": {
+            "type": "string"
+          },
+          "baseline_id": {
+            "type": "integer"
+          },
+          "candidate_id": {
+            "type": "integer"
+          },
+          "baseline_version": {
+            "type": "string"
+          },
+          "candidate_version": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "overall": {
+            "$ref": "#/components/schemas/ComparisonStats"
+          },
+          "by_scenario": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/ComparisonStats"
+            }
+          },
+          "excluded": {
+            "type": "object",
+            "properties": {
+              "baseline_unseeded": {
+                "type": "integer"
+              },
+              "candidate_unseeded": {
+                "type": "integer"
+              },
+              "baseline_only_keys": {
+                "type": "integer"
+              },
+              "candidate_only_keys": {
+                "type": "integer"
+              },
+              "ambiguous_overlap_keys": {
+                "type": "integer"
+              }
+            }
+          },
+          "pair_sample": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Pair"
+            }
+          },
+          "pair_sample_truncated": {
+            "type": "boolean"
+          }
+        }
+      }
+    }
+  },
+  "security": [
+    {},
+    {
+      "BearerAuth": []
+    },
+    {
+      "SessionCookie": []
+    }
+  ]
+}

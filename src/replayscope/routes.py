@@ -156,6 +156,8 @@ def list_runs(experiment_id):
         return error("page must be positive; per_page must be 1 to 100")
     query = _run_query(experiment_id)
     if request.args.get("scenario"):
+        if len(request.args["scenario"]) > 120:
+            return error("scenario must be at most 120 characters")
         query = query.filter(BenchmarkRun.scenario == request.args["scenario"])
     if request.args.get("agent_version_id"):
         try:
@@ -175,6 +177,8 @@ def experiment_summary(experiment_id):
     query = _run_query(experiment_id)
     scenario = request.args.get("scenario")
     if scenario:
+        if len(scenario) > 120:
+            return error("scenario must be at most 120 characters")
         query = query.filter(BenchmarkRun.scenario == scenario)
     grouped = {}
     for run in query.all():

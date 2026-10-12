@@ -6,6 +6,7 @@
   <meta name="color-scheme" content="dark">
   {% if config.AUTH_ENABLED %}<meta name="csrf-token" content="{{ csrf_token() }}">{% endif %}
   <title>{% block title %}ReplayScope{% endblock %} — ReplayScope</title>
+  <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
   <script src="{{ url_for('static', filename='dashboard.js') }}" defer></script>
 </head>
@@ -22,10 +23,11 @@
         <a class="nav-link {{ 'selected' if active_page == 'home' else '' }}" href="{{ url_for('web.home') }}"><span class="nav-icon">▦</span> Overview</a>
         <a class="nav-link {{ 'selected' if active_page == 'experiments' else '' }}" href="{{ url_for('web.home') }}#experiments"><span class="nav-icon">⬡</span> Experiments</a>
         <a class="nav-link" href="{{ url_for('web.home') }}#recent-uploads"><span class="nav-icon">⇪</span> Imports</a>
+        <a class="nav-link {{ 'selected' if active_page == 'docs' else '' }}" href="{{ url_for('docs_ui.docs') }}"><span class="nav-icon">⌘</span> API reference</a>
       </nav>
       <div class="sidebar-foot">
         <span class="status-dot"></span> {{ "PROTECTED SESSION" if config.AUTH_ENABLED else "LOCAL DEVELOPMENT" }}
-        <p>ReplayScope v0.4<br>Flask analytics workspace</p>
+        <p>ReplayScope v{{ config.APP_VERSION }}<br>Flask analytics workspace</p>
       </div>
     </aside>
 
