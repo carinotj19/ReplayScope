@@ -71,7 +71,7 @@ Sample datasets are **not** a benchmark performance claim. The more valuable por
 - Why does matching scenario and seed not automatically establish causality?
 - What would need to change before the application could be made public?
 
-Be open about incomplete features. Retries, distributed concurrency safety, user accounts and public hosting are not yet finished.
+Be open about incomplete features. Worker retries, leases and concurrency regression tests exist, but transactional queue-outbox guarantees, production alerting, multi-user accounts and public hosting are not finished.
 
 ## 6. Prepare screenshots for the portfolio
 

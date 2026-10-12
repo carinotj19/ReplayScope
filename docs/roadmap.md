@@ -1,5 +1,7 @@
 # ReplayScope roadmap
 
+**v1.0.0 local portfolio MVP:** Core application and reproducible demo are complete; see [the release acceptance checklist](release-v1.md) for remaining screenshot and visibility steps.
+
 ## Completed: local Flask engineering foundation
 
 - [x] Simulation-agnostic JSON and CSV benchmark schema, parser and validator

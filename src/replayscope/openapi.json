@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReplayScope API",
-    "version": "0.8.0",
-    "description": "REST API for simulation-independent benchmark ingestion and agent-version analytics. Authentication is optional for the localhost demo: with protected mode enabled, authenticate using a signed session (and CSRF token for unsafe methods) or a configured bearer token for API routes. All sample data is illustrative. This specification documents HTTP behavior, not guarantees of production hosting or statistical significance. Expired fenced leases can be recovered by a separate operator watchdog; API routes are unchanged."
+    "version": "1.0.0",
+    "description": "REST API for simulation-independent benchmark ingestion and agent-version analytics. Authentication is optional for the localhost demo: with protected mode enabled, authenticate using a signed session (and CSRF token for unsafe methods) or a configured bearer token for API routes. All sample data is illustrative. This is the local portfolio v1 API contract; it does not imply a publicly hosted production service or statistical significance. Expired fenced leases can be recovered by a separate operator watchdog; API routes are unchanged."
   },
   "servers": [
     {

@@ -8,3 +8,11 @@ instance/
 *.egg-info/
 dist/
 build/
+
+# Prevent local private configuration and credentials entering source control
+.env.*
+*.db
+*.pem
+*.key
+*.p12
+*.pfx
