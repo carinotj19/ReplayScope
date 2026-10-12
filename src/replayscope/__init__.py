@@ -1,5 +1,6 @@
 """ReplayScope Flask application factory."""
 import os
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 
 from flask import Flask, jsonify, request
@@ -20,9 +21,14 @@ def create_app(test_config=None):
     database_url = external_db_url or (
         "sqlite:///" + str(Path(app.instance_path) / "replayscope.sqlite3")
     )
+    try:
+        app_version = package_version("replayscope")
+    except PackageNotFoundError:
+        app_version = "dev"
     if database_url.startswith("postgres://"):
         database_url = "postgresql://" + database_url[len("postgres://"):]
     app.config.from_mapping(
+        APP_VERSION=app_version,
         SQLALCHEMY_DATABASE_URI=database_url,
         SQLALCHEMY_TRACK_MODIFICATIONS=False,
         MAX_CONTENT_LENGTH=8 * 1024 * 1024,

@@ -15,6 +15,7 @@ def test_docs_render_and_spec_is_valid_json(tmp_path):
         page = client.get("/docs")
         assert page.status_code == 200
         assert b"REST API reference" in page.data
+        assert f"ReplayScope v{app.config['APP_VERSION']}".encode() in page.data
         assert b"Upload benchmark JSON or CSV" in page.data
         spec_response = client.get("/api/v1/openapi.json")
         assert spec_response.status_code == 200

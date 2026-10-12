@@ -27,7 +27,7 @@
       </nav>
       <div class="sidebar-foot">
         <span class="status-dot"></span> {{ "PROTECTED SESSION" if config.AUTH_ENABLED else "LOCAL DEVELOPMENT" }}
-        <p>ReplayScope v0.4<br>Flask analytics workspace</p>
+        <p>ReplayScope v{{ config.APP_VERSION }}<br>Flask analytics workspace</p>
       </div>
     </aside>
 
