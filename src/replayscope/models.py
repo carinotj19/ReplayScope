@@ -52,3 +52,19 @@ class BenchmarkRun(db.Model):
     extra = db.Column("metadata", db.JSON, nullable=False, default=dict)
     events = db.Column(db.JSON, nullable=False, default=list)
     agent_version = db.relationship("AgentVersion")
+
+class UploadLease(db.Model):
+    """Current fencing token and heartbeat for an in-progress upload.
+
+    The separate table is intentional: db.create_all() adds it to legacy local
+    SQLite databases without altering any existing upload or run record.
+    """
+    __tablename__ = "upload_leases"
+    upload_id = db.Column(
+        db.String(36), db.ForeignKey("replay_uploads.id"),
+        primary_key=True,
+    )
+    token = db.Column(db.String(36), nullable=True)
+    heartbeat_at = db.Column(db.DateTime(timezone=True), nullable=True)
+    expires_at = db.Column(db.DateTime(timezone=True), nullable=True, index=True)
+    attempts = db.Column(db.Integer, nullable=False, default=0)

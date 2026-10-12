@@ -1,7 +1,7 @@
 # Upload validation and worker recovery
 
-ReplayScope v0.7.0 adds defensive limits and recovery facilities without
-changing the database schema or invalidating your existing SQLite records.
+ReplayScope v0.8.0 retains the defensive validation and adds fenced upload
+leases. A separate lease table preserves the existing local SQLite uploads.
 
 ## Input contract limits
 
@@ -31,9 +31,13 @@ raises an exception while constructing the batch, the transaction rolls back,
 leaving no partial new rows. Agent-version upserts use database conflict
 handling for SQLite and PostgreSQL and are safe to repeat.
 
-This offers **idempotent application-level processing**, not mathematically
-exactly-once execution in all distributed failure scenarios. In particular,
-there is no worker lease/fencing token yet.
+ReplayScope now adds a leased token and a heartbeat while a worker parses an
+upload. The write transaction checks that the token is still current and
+unexpired under upload-then-lease row locks before inserting runs. A reclaimed
+worker cannot commit over a newer worker's state.
+
+This offers **fenced application-level processing**, not a mathematical
+exactly-once guarantee across every distributed failure scenario.
 
 ## Queue retry policy
 
@@ -56,13 +60,35 @@ that worker is no longer running** and only then use:
 
     py -m flask --app replayscope:create_app recover-upload UPLOAD_ID --force-stuck
 
-Do not force recovery of a still-active worker. Neither the database nor RQ
-can yet prove a worker is dead from the current upload state alone.
+The new `sweep-stale` command reclaims only expired token-bearing processing
+records and fences off old owners. It supports a one-shot run or an independent
+watchdog process:
+
+    py -m flask --app replayscope:create_app sweep-stale
+    py -m flask --app replayscope:create_app sweep-stale --watch --interval 30
+
+A lease still being renewed is never reclaimed. Historical `processing`
+records without any active token still require explicit operator review.
+Do not force recovery while an old, unfenced worker might be running.
 
 ## Further work
 
-- Lease timestamps and fencing tokens for safe automatic stale-job recovery.
+- Add watchdog metrics, failure alerts and systematic lease renewal outage tests.
 - Transactionally coordinated queue/database outbox for enqueue failure.
 - Multi-worker race/load testing on PostgreSQL.
 - Retention policies, content scanning and storage quotas.
 - Operator-only audit logs and job retry history.
+
+## Migration and clock assumptions
+
+Existing local SQLite users keep their uploaded rows. The application-factory
+`db.create_all()` adds only the new `upload_leases` table. For managed database
+installations with `DATABASE_URL`, use the Alembic
+`0002_upload_leases` migration with `flask db upgrade`.
+
+Lease expiry is compared using UTC timestamps on the database objects and
+application-clock timestamps. All worker/watchdog hosts need reasonably
+synchronized clocks (NTP); material clock skew can cause early expiration.
+The defaults are 120 seconds per lease and a 20-second heartbeat interval.
+The watchdog's `--watch` loop is an independently supervised process, not a
+Flask request/background task. It executes recovered jobs inline.

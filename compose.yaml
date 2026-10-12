@@ -58,6 +58,16 @@ services:
       api:
         condition: service_healthy
 
+  watchdog:
+    build: .
+    command: ["python", "-m", "flask", "--app", "replayscope:create_app", "sweep-stale", "--watch", "--interval", "30"]
+    environment: *app_env
+    volumes:
+      - uploads:/data/uploads
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   postgres_data:
   uploads:

@@ -17,7 +17,8 @@ The local SQLite/demo and Docker Compose configurations are development environm
 - [ ] Replace local upload storage with a durable shared store if API and worker run on separate hosts; restrict access and define retention/deletion.
 - [ ] Evaluate upload threats including oversized/nested metadata, deep event objects, resource exhaustion, content scanning, and safe error responses.
 - [x] Add conditional per-upload worker claims, SQLite/PostgreSQL agent-version upsert, and bounded RQ retry policy.
-- [ ] Add worker leases/heartbeats, dead-letter review and multi-worker concurrency stress tests before deploying.
+- [x] Add fenced upload leases, heartbeats, stale sweep CLI and PostgreSQL concurrent-claim regression coverage.
+- [ ] Add watchdog operational metrics, alerting, dead-letter handling and larger failure/load testing before deploying.
 - [ ] Add structured logs, traceable request/job IDs, metrics, alerting and a documented incident process.
 - [ ] Audit dependencies and license obligations; pin release artifacts and use deployment credentials with minimum permissions.
 - [ ] Complete an end-to-end deployment smoke test: login, upload, queue, processing, comparison and logout.

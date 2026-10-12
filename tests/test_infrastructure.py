@@ -11,7 +11,7 @@ import pytest
 from sqlalchemy import inspect
 
 from replayscope import create_app
-from replayscope.models import AgentVersion, BenchmarkRun, ReplayUpload, db
+from replayscope.models import AgentVersion, BenchmarkRun, ReplayUpload, UploadLease, Experiment, db
 
 
 def _payload():
@@ -47,7 +47,7 @@ def test_schema_migration_on_fresh_sqlite(tmp_path):
         assert not inspect(db.engine).has_table("experiments")
         upgrade(directory="migrations")
         tables = set(inspect(db.engine).get_table_names())
-        assert {"alembic_version", "experiments", "replay_uploads",
+        assert {"alembic_version", "experiments", "replay_uploads", "upload_leases",
                 "agent_versions", "benchmark_runs"}.issubset(tables)
         # Applying the same migration twice should not duplicate tables.
         upgrade(directory="migrations")
@@ -70,6 +70,7 @@ def test_postgresql_migration_and_ingestion(tmp_path):
     with app.app_context():
         upgrade(directory="migrations")
         assert inspect(db.engine).has_table("benchmark_runs")
+        assert inspect(db.engine).has_table("upload_leases")
     with app.test_client() as client:
         exp, upload = _create_and_upload(client)
         assert upload["status"] == "ready"
@@ -125,3 +126,68 @@ def test_rq_worker_processes_queued_upload(tmp_path, monkeypatch):
         summary = client.get(f"/api/v1/experiments/{experiment_id}/summary")
         assert summary.status_code == 200
         assert summary.json["versions"][0]["overall"]["task_success_rate"] == 1.0
+
+
+@pytest.mark.skipif(not os.getenv("TEST_POSTGRES_URL"), reason="PostgreSQL CI service not configured")
+def test_postgres_concurrent_upload_claims_and_agent_registration(tmp_path):
+    """Real PostgreSQL transactions with concurrent independent Flask sessions."""
+    from concurrent.futures import ThreadPoolExecutor
+    from uuid import uuid4
+    from pathlib import Path
+    from flask_migrate import upgrade
+    from replayscope.jobs import process_upload
+
+    app = create_app({
+        "TESTING": True,
+        "AUTO_CREATE_DB": False,
+        "SQLALCHEMY_DATABASE_URI": os.environ["TEST_POSTGRES_URL"],
+        "UPLOAD_DIR": str(tmp_path / "stress"),
+    })
+    with app.app_context():
+        upgrade(directory="migrations")
+        experiment = Experiment(
+            name=f"Concurrency stress {uuid4()}", description="Postgres worker stress test"
+        )
+        db.session.add(experiment)
+        db.session.flush()
+        source = Path(tmp_path) / "stress.json"
+        source.write_bytes(json.dumps({"runs": [{
+            "agent": f"ConcurrentBot-{uuid4()}", "version": "1",
+            "scenario": "concurrent", "seed": "7",
+            "outcome": "success", "score": 1.0,
+        }]}).encode())
+        # Make each queued upload unique while sharing one agent/version.
+        # This tests the ON CONFLICT registration under real PG contention.
+        shared = json.loads(source.read_text())
+        shared["runs"][0]["agent"] = f"PGRace-{uuid4()}"
+        source.write_bytes(json.dumps(shared).encode())
+        agent_name = shared["runs"][0]["agent"]
+        uploads = []
+        for i in range(12):
+            entry = ReplayUpload(
+                experiment_id=experiment.id, sha256=f"{i:064x}",
+                format="json", filename=f"concurrent-{i}.json",
+                path=str(source), status="queued",
+            )
+            db.session.add(entry)
+            db.session.flush()
+            uploads.append(entry.id)
+        db.session.commit()
+
+    # One independent SQLAlchemy app/session per worker.
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        results = list(pool.map(lambda uid: process_upload(uid, app), uploads))
+    assert results == ["ready"] * len(uploads)
+
+    # Duplicate job delivery for a single upload must not add extra rows.
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        repeated = list(pool.map(lambda _: process_upload(uploads[0], app), range(6)))
+    assert repeated == ["ready"] * 6
+
+    with app.app_context():
+        assert db.session.query(AgentVersion).filter_by(name=agent_name, version="1").count() == 1
+        for uid in uploads:
+            record = db.session.get(ReplayUpload, uid)
+            assert record.status == "ready"
+            assert db.session.query(BenchmarkRun).filter_by(upload_id=uid).count() == 1
+            assert db.session.get(UploadLease, uid).token is None

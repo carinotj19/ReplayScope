@@ -108,15 +108,15 @@ without deleting data:
 py -m flask --app replayscope:create_app recover-upload UPLOAD_ID
 ```
 
-If a terminated worker left an upload stuck as `processing`, first confirm
-that **no worker is still processing that upload**, then explicitly recover it:
+For **legacy or deliberately forced** recovery of a `processing` upload,
+first confirm the original worker has stopped, then explicitly recover it:
 
 ```powershell
 py -m flask --app replayscope:create_app recover-upload UPLOAD_ID --force-stuck
 ```
 
-The second command deliberately requires an override because resetting an
-*active* worker could lead to conflicting writes. Both commands perform
+The second command deliberately requires an override and should not be used
+while an older, unfenced worker might still be running. Both commands perform
 immediate recovery in the invoking Python process; Docker/Redis isn't required.
 The existing dashboard does not expose these administrative controls.
 
@@ -124,6 +124,41 @@ Input validation now rejects unusually deep metadata/events, oversized nested
 strings, nonfinite nested numbers and duplicate CSV headers before storing
 uploads. See [reliability notes](docs/reliability.md) for precise bounds and
 remaining failure modes.
+
+
+## Fenced worker leases and stale-job watchdog (v0.8.0)
+
+ReplayScope now gives every in-progress upload a time-limited **lease token**.
+The worker renews its lease with a heartbeat while processing; the final
+database transaction checks the token under a row lock before writing runs.
+If another worker has safely reclaimed an expired lease, the old worker
+**cannot commit or overwrite the recovered results**.
+
+A watchdog can detect and recover abandoned uploads without Docker or Redis:
+
+```powershell
+# One safe sweep; returns immediately if nothing has expired:
+py -m flask --app replayscope:create_app sweep-stale
+
+# Optional ongoing watchdog (separate PowerShell window, Ctrl+C to stop):
+py -m flask --app replayscope:create_app sweep-stale --watch --interval 30
+```
+
+The watchdog only reclaims uploads with an **expired nonempty lease**. It skips
+healthy leases and legacy `processing` records without a lease (those still
+require explicit manual inspection). Lease duration defaults to 120 seconds,
+with a heartbeat every 20 seconds. A reclaimed upload is processed inline by
+the watchdog to avoid losing a queue message.
+
+The existing local SQLite quick-start adds the new `upload_leases` table
+automatically without deleting experiments or modifying benchmark runs.
+**Managed PostgreSQL** installations require `flask db upgrade` to apply the
+new `0002_upload_leases` migration. Do not run the migration against an older
+SQLite demo that used automatic table creation.
+
+This is a safer recovery model, not proof of exactly-once execution or a
+production availability guarantee. See [reliability notes](docs/reliability.md)
+for limitations and PostgreSQL stress-test coverage.
 
 ## Authentication and local operation
 

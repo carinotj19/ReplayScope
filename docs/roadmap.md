@@ -18,7 +18,10 @@
 
 - [x] SQLite/PostgreSQL conflict-safe agent/version registration and per-upload atomic worker claims
 - [x] Requeue-safe processing, RQ retries and explicit CLI recovery for stranded uploads
-- [ ] Worker leases/heartbeats and automated identification of abandoned processing states
+- [x] Time-limited leases, periodic heartbeat renewal and commit-time fencing
+- [x] Optional sweep-stale watchdog to safely reclaim expired leases
+- [x] PostgreSQL concurrent processing stress test with shared agent-version registration
+- [ ] Lease expiry metrics, queuing outbox and robust watchdog observability
 - [ ] Structured error handling, logs and query performance measurements
 - [x] Bounded nested metadata/event validation and duplicate CSV header rejection
 - [ ] Retention controls, schema-level semantic validation and documented export
