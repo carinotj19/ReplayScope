@@ -120,7 +120,7 @@ def test_api_returns_json_for_404_and_large_payload(client):
 
 
 def test_api_filters_reject_oversized_scenario(client):
-    exp = experiment(client)
+    exp = new_experiment(client)
     scenario = "x" * 121
     assert client.get(
         f"/api/v1/experiments/{exp}/runs?scenario={scenario}"

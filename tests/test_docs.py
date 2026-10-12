@@ -31,7 +31,9 @@ def test_docs_render_and_spec_is_valid_json(tmp_path):
             if rule.rule == "/health" or rule.rule.startswith("/api/v1/"):
                 normalized = re.sub(r"<(?:[a-z]+:)?([a-z_]+)>", r"{\1}", rule.rule)
                 actual.add(normalized)
-                actual_methods[normalized] = set(rule.methods) & {"GET", "POST", "PATCH", "PUT", "DELETE"}
+                actual_methods.setdefault(normalized, set()).update(
+                    set(rule.methods) & {"GET", "POST", "PATCH", "PUT", "DELETE"}
+                )
         assert documented == actual
         for path, methods in spec["paths"].items():
             listed = {method.upper() for method in methods}
