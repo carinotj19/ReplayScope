@@ -113,3 +113,32 @@ is needed for manual recovery.
 worker from a dead worker. Manual forced recovery is unsafe if the original
 worker is still operating. Higher-level job deduplication and concurrency
 semantics require a multi-worker stress test, not just unit coverage.
+
+## Fenced job ownership (v0.8)
+
+An `upload_leases` table stores an expiring token, heartbeat timestamp and
+attempt count for each processed upload. It is separate from the main
+`replay_uploads` table so `db.create_all()` can introduce it to existing
+local SQLite installations without modifying prior uploaded results.
+
+Each processing attempt conditionally claims `queued/failed -> processing`
+and assigns a new token. During parsing, a separate SQLAlchemy session
+extends the expiry. Before deleting/reinserting normalized run rows,
+the worker locks the upload row **then** the lease row and proves that the
+token and expiry are still valid. The final run inserts and ready status are
+committed together while these rows are locked.
+
+The `sweep-stale` command only reclaims `processing` rows whose nonempty lease
+expired. The watchdog takes locks in the same order, revokes the stale token
+and processes the upload inline. A concurrent old worker cannot commit after
+reclamation because its token is no longer current. If the worker committed
+first, the watchdog sees `ready` and leaves it untouched.
+
+A lease-less historical processing row is not auto-reclaimed. That requires
+explicit operational confirmation and `recover-upload --force-stuck`.
+The latter should not be used if any pre-fencing worker could still be active.
+
+A controlled PostgreSQL CI test exercises concurrent processing of 12
+different uploads referencing the same agent/version and duplicate delivery
+of one upload. It is useful regression coverage, **not** a load benchmark
+or comprehensive distributed-failure proof.

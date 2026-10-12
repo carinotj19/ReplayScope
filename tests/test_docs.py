@@ -46,4 +46,4 @@ def test_contract_is_packaged_as_source():
         files("replayscope").joinpath("openapi.json").read_text(encoding="utf-8")
     )
     assert data["info"]["title"] == "ReplayScope API"
-    assert data["info"]["version"] == "0.7.0"
+    assert data["info"]["version"] == "0.8.0"
