@@ -16,10 +16,12 @@
 
 ## Next: production robustness
 
-- [ ] Concurrency-safe agent/version registration and upload idempotency
-- [ ] Redis/RQ retry/backoff and reliable worker recovery under failure
+- [x] SQLite/PostgreSQL conflict-safe agent/version registration and per-upload atomic worker claims
+- [x] Requeue-safe processing, RQ retries and explicit CLI recovery for stranded uploads
+- [ ] Worker leases/heartbeats and automated identification of abandoned processing states
 - [ ] Structured error handling, logs and query performance measurements
-- [ ] Stronger nested JSON validation, retention controls and documented export
+- [x] Bounded nested metadata/event validation and duplicate CSV header rejection
+- [ ] Retention controls, schema-level semantic validation and documented export
 - [ ] Meaningful paired-comparison statistical uncertainty, evaluated on larger controlled samples
 
 ## Before any public launch

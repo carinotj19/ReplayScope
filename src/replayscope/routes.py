@@ -108,17 +108,25 @@ def upload_dataset():
     except IntegrityError:
         db.session.rollback()
         path.unlink(missing_ok=True)
-        return error("Duplicate upload", 409)
+        previous = db.session.query(ReplayUpload).filter_by(
+            experiment_id=experiment_id, sha256=digest
+        ).first()
+        if previous:
+            return jsonify(upload_view(previous)), 200
+        return error("Could not create upload due to a concurrent write", 409)
 
     if current_app.config["PROCESSING_MODE"] == "rq":
         try:
             from redis import Redis
-            from rq import Queue
+            from rq import Queue, Retry
             queue = Queue(
                 "replayscope",
                 connection=Redis.from_url(current_app.config["REDIS_URL"]),
             )
-            queue.enqueue("replayscope.jobs.process_upload", upload.id)
+            queue.enqueue(
+                "replayscope.jobs.process_upload", upload.id,
+                retry=Retry(max=3, interval=[10, 60, 180]),
+            )
         except Exception:
             upload.status = "failed"
             upload.error = "Could not enqueue background processing"

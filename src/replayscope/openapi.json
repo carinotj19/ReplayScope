@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "ReplayScope API",
-    "version": "0.5.0",
+    "version": "0.7.0",
     "description": "REST API for simulation-independent benchmark ingestion and agent-version analytics. Authentication is optional for the localhost demo: with protected mode enabled, authenticate using a signed session (and CSRF token for unsafe methods) or a configured bearer token for API routes. All sample data is illustrative. This specification documents HTTP behavior, not guarantees of production hosting or statistical significance."
   },
   "servers": [
@@ -245,7 +245,7 @@
         ],
         "summary": "Upload benchmark JSON or CSV",
         "operationId": "uploadBenchmark",
-        "description": "Requires experiment_id and a .json or .csv file; validates rows before storing. Duplicate file bytes within an experiment return the existing upload. Inline mode may return ready immediately; RQ mode queues processing.",
+        "description": "Requires experiment_id and a .json or .csv file; validates rows before storing. Duplicate file bytes within an experiment return the existing upload. Inline mode may return ready immediately; RQ mode queues processing. Nested metadata/trace JSON is bounded (10 depth, 6000 nodes per run, 2048-character nested strings); RQ retries unexpected worker exceptions up to three times.",
         "requestBody": {
           "required": true,
           "content": {
@@ -324,6 +324,16 @@
           },
           "404": {
             "description": "Experiment not found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiError"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "Concurrent upload conflict",
             "content": {
               "application/json": {
                 "schema": {

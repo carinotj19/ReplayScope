@@ -92,6 +92,39 @@ The two PostgreSQL/Redis integration tests are intentionally skipped if those se
 
 For API work, see `http://127.0.0.1:5000/docs` and the route `/api/v1/openapi.json`. A small hand-editable input example is in [examples/benchmark.json](examples/benchmark.json), with a [CSV equivalent](examples/benchmark.csv).
 
+## Worker recovery and safe retries (v0.7.0)
+
+An upload is claimed by a conditional database UPDATE: if a second worker
+receives the same job, it sees `processing` or `ready` rather than importing
+the rows again. Agent versions are registered using database conflict-safe
+inserts on SQLite and PostgreSQL.
+
+Redis/RQ jobs automatically retry **unexpected worker exceptions** at 10,
+60 and 180-second intervals, up to three retries. Invalid datasets are marked
+`failed` and do not retry automatically. A failed upload can be recovered
+without deleting data:
+
+```powershell
+py -m flask --app replayscope:create_app recover-upload UPLOAD_ID
+```
+
+If a terminated worker left an upload stuck as `processing`, first confirm
+that **no worker is still processing that upload**, then explicitly recover it:
+
+```powershell
+py -m flask --app replayscope:create_app recover-upload UPLOAD_ID --force-stuck
+```
+
+The second command deliberately requires an override because resetting an
+*active* worker could lead to conflicting writes. Both commands perform
+immediate recovery in the invoking Python process; Docker/Redis isn't required.
+The existing dashboard does not expose these administrative controls.
+
+Input validation now rejects unusually deep metadata/events, oversized nested
+strings, nonfinite nested numbers and duplicate CSV headers before storing
+uploads. See [reliability notes](docs/reliability.md) for precise bounds and
+remaining failure modes.
+
 ## Authentication and local operation
 
 The localhost quick start intentionally starts in **LOCAL DEMO** mode with authentication disabled. This is suitable only for a trusted local development environment.
